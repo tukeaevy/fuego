@@ -429,7 +429,7 @@ FuegoTor is part of the Fuego project and is licensed under the GNU General Publ
 ## 🔗 **Links**
 
 - [Tor Project](https://www.torproject.org/)
-- [Fuego Project](https://github.com/ColinRitman/fuego)
+- [Fuego Project](https://github.com/usexfg/)
 - [Tor Documentation](https://2019.www.torproject.org/docs/documentation.html.en)
 - [SOCKS5 Protocol](https://tools.ietf.org/html/rfc1928)
 
