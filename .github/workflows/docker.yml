@@ -2,6 +2,122 @@ name: Docker Images
 
 on:
   push:
+    branches: [ master, main ]
+    tags:
+      - "*"
+    paths:
+      - 'docker/**'
+      - '.github/workflows/docker.yml'
+  workflow_dispatch:
+
+jobs:
+  build-docker:
+    name: Docker Multi-Arch
+    runs-on: ubuntu-latest
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Optional login to Docker Hub
+        if: env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != ''
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
+
+      - name: Compute image tags
+        id: tags
+        shell: bash
+        run: |
+          ref_name='${{ github.ref_name }}'
+          default_branch='${{ github.event.repository.default_branch }}'
+          TAGS="ghcr.io/${{ github.repository }}:${ref_name}"
+          if [ "$ref_name" = "$default_branch" ]; then
+            TAGS="$TAGS,ghcr.io/${{ github.repository }}:latest"
+          fi
+          if [ -n "${{ env.DOCKERHUB_USERNAME }}" ] && [ -n "${{ env.DOCKERHUB_TOKEN }}" ]; then
+            TAGS="$TAGS,fuego/fuego:${ref_name}"
+            if [ "$ref_name" = "$default_branch" ]; then
+              TAGS="$TAGS,fuego/fuego:latest"
+            fi
+          fi
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker images
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate Docker run instructions
+        id: docker-info
+        run: |
+          xfg_ver='${{ github.ref_name }}'
+          cat > docker-instructions.md << EOF
+          # Fuego Docker Images v${xfg_ver}
+          
+          ## Quick Start
+          ```bash
+          # Run Fuego daemon
+          docker run -d --name fuego-node \
+            -p 20808:20808 -p 28180:28180 \
+            -v fuego-data:/home/fuego/.fuego \
+            ghcr.io/${{ github.repository }}:${xfg_ver}
+          
+          # Run wallet CLI
+          docker run -it --rm \
+            -v fuego-wallet:/home/fuego/.fuego \
+            ghcr.io/${{ github.repository }}:${xfg_ver} \
+            fuego-wallet-cli
+          ```
+          
+          ## Available Images
+          - `ghcr.io/${{ github.repository }}:${xfg_ver}` (GitHub Container Registry)
+          EOF
+          if [ -n "${{ env.DOCKERHUB_USERNAME }}" ] && [ -n "${{ env.DOCKERHUB_TOKEN }}" ]; then
+            echo "- \`fuego/fuego:${xfg_ver}\` (Docker Hub)" >> docker-instructions.md
+          fi
+          echo "instructions_file=docker-instructions.md" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.docker-info.outputs.instructions_file }}
+          name: Fuego CLI Suite v${{ github.ref_name }}
+          body: |
+            🐳 [Docker instructions](../../releases/download/${{ github.ref_name }}/docker-instructions.md) for **Fuego CLI Docker ${{ github.ref_name }}**
+            
+            Multi-architecture images:
+            - `ghcr.io/${{ github.repository }}:${{ github.ref_name }}`
+            
+            Supported platforms: linux/amd64, linux/arm64
+          append_body: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+name: Docker Images
+
+on:
+  push:
     tags:
       - "*"
 

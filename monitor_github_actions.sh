@@ -4,10 +4,11 @@
 # Monitors build status every 2 minutes
 
 REPO="ColinRitman/fuego"
-WORKFLOW_NAME="Build and Test"
+WORKFLOW_FILE="${1:-docker.yml}"
+WORKFLOW_NAME="${2:-Docker Images}"
 
 echo "🔍 Monitoring GitHub Actions for $REPO"
-echo "📋 Workflow: $WORKFLOW_NAME"
+echo "📋 Workflow: $WORKFLOW_NAME ($WORKFLOW_FILE)"
 echo "⏰ Checking every 2 minutes..."
 echo "=================================="
 
@@ -16,16 +17,16 @@ while true; do
     echo "🕐 $(date '+%Y-%m-%d %H:%M:%S') - Checking build status..."
     
     # Get the latest workflow run status
-    STATUS=$(curl -s "https://api.github.com/repos/$REPO/actions/workflows/build.yml/runs?per_page=1" | jq -r '.workflow_runs[0].status // "unknown"')
-    CONCLUSION=$(curl -s "https://api.github.com/repos/$REPO/actions/workflows/build.yml/runs?per_page=1" | jq -r '.workflow_runs[0].conclusion // "unknown"')
-    HTML_URL=$(curl -s "https://api.github.com/repos/$REPO/actions/workflows/build.yml/runs?per_page=1" | jq -r '.workflow_runs[0].html_url // "unknown"')
+    STATUS=$(curl -s "https://api.github.com/repos/$REPO/actions/workflows/$WORKFLOW_FILE/runs?per_page=1" | jq -r '.workflow_runs[0].status // "unknown"')
+    CONCLUSION=$(curl -s "https://api.github.com/repos/$REPO/actions/workflows/$WORKFLOW_FILE/runs?per_page=1" | jq -r '.workflow_runs[0].conclusion // "unknown"')
+    HTML_URL=$(curl -s "https://api.github.com/repos/$REPO/actions/workflows/$WORKFLOW_FILE/runs?per_page=1" | jq -r '.workflow_runs[0].html_url // "unknown"')
     
     echo "📊 Status: $STATUS"
     echo "🎯 Conclusion: $CONCLUSION"
     echo "🔗 URL: $HTML_URL"
     
     # Check individual job statuses
-    RUN_ID=$(curl -s "https://api.github.com/repos/$REPO/actions/workflows/build.yml/runs?per_page=1" | jq -r '.workflow_runs[0].id // "unknown"')
+    RUN_ID=$(curl -s "https://api.github.com/repos/$REPO/actions/workflows/$WORKFLOW_FILE/runs?per_page=1" | jq -r '.workflow_runs[0].id // "unknown"')
     
     if [ "$RUN_ID" != "unknown" ] && [ "$RUN_ID" != "null" ]; then
         echo "📋 Job Details:"

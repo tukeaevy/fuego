@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     cmake \
     git \
     libboost-all-dev \
+    libicu-dev \
     pkg-config \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -42,6 +43,16 @@ FROM ubuntu:22.04
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
+    curl \
+    libicu70 \
+    libboost-system1.74.0 \
+    libboost-filesystem1.74.0 \
+    libboost-thread1.74.0 \
+    libboost-date-time1.74.0 \
+    libboost-chrono1.74.0 \
+    libboost-regex1.74.0 \
+    libboost-serialization1.74.0 \
+    libboost-program-options1.74.0 \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -51,9 +62,10 @@ RUN useradd -m -u 1000 -s /bin/bash fuego
 # Copy binaries from builder stage
 COPY --from=builder /src/build/src/fuegod /usr/local/bin/
 COPY --from=builder /src/build/src/walletd /usr/local/bin/
+COPY --from=builder /src/build/src/fuego-wallet-cli /usr/local/bin/
 
 # Set executable permissions
-RUN chmod +x /usr/local/bin/fuegod /usr/local/bin/walletd
+RUN chmod +x /usr/local/bin/fuegod /usr/local/bin/walletd /usr/local/bin/fuego-wallet-cli
 
 # Switch to fuego user
 USER fuego
@@ -72,7 +84,7 @@ EXPOSE 20808 28180
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:28180/getinfo || exit 1
+    CMD curl -fsS http://localhost:28180/getinfo >/dev/null || exit 1
 
 # Default command
 ENTRYPOINT ["fuegod"]

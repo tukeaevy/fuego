@@ -91,6 +91,9 @@ main() {
         "testnet")
             trigger_workflow "testnet"
             ;;
+        "docker")
+            trigger_workflow "docker"
+            ;;
         "status")
             check_status
             ;;
@@ -101,14 +104,17 @@ main() {
             trigger_workflow "test-dynamic-supply"
             sleep 2
             trigger_workflow "testnet"
+            sleep 2
+            trigger_workflow "docker"
             ;;
         *)
-            echo "Usage: $0 [build|test-dynamic-supply|testnet|status|all]"
+            echo "Usage: $0 [build|test-dynamic-supply|testnet|docker|status|all]"
             echo ""
             echo "Options:"
             echo "  build              - Trigger main build workflow"
             echo "  test-dynamic-supply - Trigger dynamic supply tests"
             echo "  testnet           - Trigger testnet build and test"
+            echo "  docker            - Trigger docker image build and push"
             echo "  status            - Check workflow status"
             echo "  all               - Trigger all workflows"
             exit 1
