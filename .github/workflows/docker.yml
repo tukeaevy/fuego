@@ -10,6 +10,10 @@ on:
       - '.github/workflows/docker.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build-docker:
     name: Docker Multi-Arch
@@ -46,9 +50,10 @@ jobs:
         run: |
           ref_name='${{ github.ref_name }}'
           default_branch='${{ github.event.repository.default_branch }}'
-          TAGS="ghcr.io/${{ github.repository }}:${ref_name}"
+          REPO_LC=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
+          TAGS="ghcr.io/${REPO_LC}:${ref_name}"
           if [ "$ref_name" = "$default_branch" ]; then
-            TAGS="$TAGS,ghcr.io/${{ github.repository }}:latest"
+            TAGS="$TAGS,ghcr.io/${REPO_LC}:latest"
           fi
           if [ -n "${{ env.DOCKERHUB_USERNAME }}" ] && [ -n "${{ env.DOCKERHUB_TOKEN }}" ]; then
             TAGS="$TAGS,fuego/fuego:${ref_name}"
@@ -73,6 +78,7 @@ jobs:
         id: docker-info
         run: |
           xfg_ver='${{ github.ref_name }}'
+          REPO_LC=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
           cat > docker-instructions.md << EOF
           # Fuego Docker Images v${xfg_ver}
           
@@ -82,17 +88,17 @@ jobs:
           docker run -d --name fuego-node \
             -p 20808:20808 -p 28180:28180 \
             -v fuego-data:/home/fuego/.fuego \
-            ghcr.io/${{ github.repository }}:${xfg_ver}
+            ghcr.io/${REPO_LC}:${xfg_ver}
           
           # Run wallet CLI
           docker run -it --rm \
             -v fuego-wallet:/home/fuego/.fuego \
-            ghcr.io/${{ github.repository }}:${xfg_ver} \
+            ghcr.io/${REPO_LC}:${xfg_ver} \
             fuego-wallet-cli
           ```
           
           ## Available Images
-          - `ghcr.io/${{ github.repository }}:${xfg_ver}` (GitHub Container Registry)
+          - `ghcr.io/${REPO_LC}:${xfg_ver}` (GitHub Container Registry)
           EOF
           if [ -n "${{ env.DOCKERHUB_USERNAME }}" ] && [ -n "${{ env.DOCKERHUB_TOKEN }}" ]; then
             echo "- \`fuego/fuego:${xfg_ver}\` (Docker Hub)" >> docker-instructions.md
@@ -100,6 +106,7 @@ jobs:
           echo "instructions_file=docker-instructions.md" >> $GITHUB_OUTPUT
 
       - name: Create Release
+        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v1
         with:
           files: ${{ steps.docker-info.outputs.instructions_file }}
