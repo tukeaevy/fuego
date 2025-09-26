@@ -1,19 +1,20 @@
-// Copyright (c) 2012-2016, The CryptoNote developers, The Bytecoin developers
+// Copyright (c) 2012-2017, The CryptoNote developers, The Bytecoin developers
+// Copyright (c) 2016-2019, The Karbo developers
 //
-// This file is part of Bytecoin.
+// This file is part of Karbo.
 //
-// Bytecoin is free software: you can redistribute it and/or modify
+// Karbo is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Bytecoin is distributed in the hope that it will be useful,
+// Karbo is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with Bytecoin.  If not, see <http://www.gnu.org/licenses/>.
+// along with Karbo.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "TcpConnection.h"
 
@@ -22,6 +23,7 @@
 #include <System/Ipv4Address.h>
 #include <arpa/inet.h>
 #include <cassert>
+#include <errno.h>
 #include <stdexcept>
 #include <sys/epoll.h>
 #include <unistd.h>
@@ -46,6 +48,7 @@ TcpConnection::~TcpConnection() {
     assert(contextPair.readContext == nullptr);
     assert(contextPair.writeContext == nullptr);
     int result = close(connection);
+    if (result) {}
     assert(result != -1);
   }
 }
@@ -81,7 +84,10 @@ size_t TcpConnection::read(uint8_t* data, size_t size) {
   std::string message;
   ssize_t transferred = ::recv(connection, (void *)data, size, 0);
   if (transferred == -1) {
-    if (errno != EAGAIN) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wlogical-op"
+    if (errno != EAGAIN  && errno != EWOULDBLOCK) {
+#pragma GCC diagnostic pop
       message = "recv failed, " + lastErrorMessage();
     } else {
       epoll_event connectionEvent;

@@ -1,19 +1,20 @@
-// Copyright (c) 2017-2022 Fuego Developers
-// Copyright (c) 2018-2019 Conceal Network & Conceal Devs
-// Copyright (c) 2016-2019 The Karbowanec developers
-// Copyright (c) 2012-2018 The CryptoNote developers
+// Copyright (c) 2012-2017, The CryptoNote developers, The Bytecoin developers
+// Copyright (c) 2016-2019, The Karbo developers
 //
-// This file is part of Fuego.
+// This file is part of Karbo.
 //
-// Fuego is free software distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the
-// implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-// PURPOSE. You can redistribute it and/or modify it under the terms
-// of the GNU General Public License v3 or later versions as published
-// by the Free Software Foundation. Fuego includes elements written
-// by third parties. See file labeled LICENSE for more details.
-// You should have received a copy of the GNU General Public License
-// along with Fuego. If not, see <https://www.gnu.org/licenses/>.
+// Karbo is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Karbo is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with Karbo.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "BlockchainSynchronizer.h"
 
@@ -25,6 +26,7 @@
 
 #include "CryptoNoteCore/TransactionApi.h"
 #include "CryptoNoteCore/CryptoNoteFormatUtils.h"
+#include "Logging/LoggerGroup.h"
 
 using namespace Crypto;
 
@@ -41,8 +43,9 @@ inline std::vector<uint8_t> stringToVector(const std::string& s) {
 
 namespace CryptoNote {
 
-BlockchainSynchronizer::BlockchainSynchronizer(INode& node, const Hash& genesisBlockHash) :
+BlockchainSynchronizer::BlockchainSynchronizer(INode& node, Logging::ILogger& logger, const Hash& genesisBlockHash) :
   m_node(node),
+  m_logger(logger),
   m_genesisBlockHash(genesisBlockHash),
   m_currentState(State::stopped),
   m_futureState(State::stopped) {
@@ -180,7 +183,7 @@ bool BlockchainSynchronizer::setFutureStateIf(State s, std::function<bool(void)>
 
 void BlockchainSynchronizer::actualizeFutureState() {
   std::unique_lock<std::mutex> lk(m_stateMutex);
-  if (m_currentState == State::stopped && m_futureState == State::blockchainSync) { // start(), immediately attach observer
+  if (m_currentState == State::stopped && (m_futureState == State::deleteOldTxs || m_futureState == State::blockchainSync)) { // start(), immediately attach observer
     m_node.addObserver(this);
   }
 
@@ -265,8 +268,18 @@ void BlockchainSynchronizer::start() {
     throw std::runtime_error("Can't start, because BlockchainSynchronizer has no consumers");
   }
 
-  if (!setFutureStateIf(State::blockchainSync, [this] { return m_currentState == State::stopped && m_futureState == State::stopped; })) {
-    throw std::runtime_error("BlockchainSynchronizer already started");
+  State nextState;
+  if (!wasStarted) {
+    nextState = State::deleteOldTxs;
+    wasStarted = true;
+  } else {
+    nextState = State::blockchainSync;
+  }
+
+  if (!setFutureStateIf(nextState, [this] { return m_currentState == State::stopped && m_futureState == State::stopped; })) {
+    auto message = "Failed to start: already started";
+    m_logger(ERROR, BRIGHT_RED) << message;
+    throw std::runtime_error(message);
   }
 
   workingThread.reset(new std::thread([this] { workingProcedure(); }));
@@ -414,6 +427,7 @@ void BlockchainSynchronizer::processBlocks(GetBlocksResponse& response) {
   if (!checkIfShouldStop()) {
     response.newBlocks.clear();
     std::unique_lock<std::mutex> lk(m_consumersMutex);
+    assert(interval.blocks.size() == blocks.size());
     auto result = updateConsumers(interval, blocks);
     lk.unlock();
 
@@ -425,7 +439,8 @@ void BlockchainSynchronizer::processBlocks(GetBlocksResponse& response) {
       break;
 
     case UpdateConsumersResult::nothingChanged:
-      if (m_node.getLastKnownBlockHeight() != m_node.getLastLocalBlockHeight()) {
+      if (m_node.getKnownBlockCount() != m_node.getLocalBlockCount()) {
+        m_logger(DEBUGGING) << "Blockchain updated, resume blockchain synchronization";
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
       } else {
         break;
@@ -452,8 +467,12 @@ void BlockchainSynchronizer::processBlocks(GetBlocksResponse& response) {
 
 /// \pre m_consumersMutex is locked
 BlockchainSynchronizer::UpdateConsumersResult BlockchainSynchronizer::updateConsumers(const BlockchainInterval& interval, const std::vector<CompleteBlock>& blocks) {
-  bool smthChanged = false;
+  assert(interval.blocks.size() == blocks.size());
 
+  bool smthChanged = false;
+  bool hasErrors = false;
+
+  uint32_t lastBlockIndex = std::numeric_limits<uint32_t>::max();
   for (auto& kv : m_consumers) {
     auto result = kv.second->checkInterval(interval);
 
@@ -465,17 +484,44 @@ BlockchainSynchronizer::UpdateConsumersResult BlockchainSynchronizer::updateCons
     if (result.hasNewBlocks) {
       uint32_t startOffset = result.newBlockHeight - interval.startHeight;
       // update consumer
-      if (kv.first->onNewBlocks(blocks.data() + startOffset, result.newBlockHeight, static_cast<uint32_t>(blocks.size()) - startOffset)) {
+      uint32_t addedCount = kv.first->onNewBlocks(blocks.data() + startOffset, result.newBlockHeight, static_cast<uint32_t>(blocks.size()) - startOffset);
+
+      if (addedCount > 0) {
+        if (addedCount < static_cast<uint32_t>(blocks.size()) - startOffset) {
+          m_logger(ERROR, BRIGHT_RED) << "Failed to add " << (static_cast<uint32_t>(blocks.size()) - startOffset - addedCount) << " blocks of " << (static_cast<uint32_t>(blocks.size()) - startOffset) << " to consumer, consumer " << kv.first;
+          hasErrors = true;
+        }
+
         // update state if consumer succeeded
-        kv.second->addBlocks(interval.blocks.data() + startOffset, result.newBlockHeight, static_cast<uint32_t>(interval.blocks.size()) - startOffset);
+        kv.second->addBlocks(interval.blocks.data() + startOffset, result.newBlockHeight, addedCount);
+
         smthChanged = true;
       } else {
-        return UpdateConsumersResult::errorOccurred;
+        m_logger(ERROR, BRIGHT_RED) << "Failed to add blocks to consumer, consumer " << kv.first;
+        hasErrors = true;
+      }
+
+      if (addedCount > 0) {
+        lastBlockIndex = std::min(lastBlockIndex, startOffset + addedCount - 1);
       }
     }
   }
 
-  return smthChanged ? UpdateConsumersResult::addedNewBlocks : UpdateConsumersResult::nothingChanged;
+  if (lastBlockIndex != std::numeric_limits<uint32_t>::max()) {
+    assert(lastBlockIndex < blocks.size());
+    lastBlockId = blocks[lastBlockIndex].blockHash;
+    m_logger(DEBUGGING) << "Last block hash " << lastBlockId << ", index " << (interval.startHeight + lastBlockIndex);
+  }
+
+  if (hasErrors) {
+    m_logger(DEBUGGING) << "Not all blocks were added to consumers, there were errors";
+    return UpdateConsumersResult::errorOccurred;
+  } else if (smthChanged) {
+    m_logger(DEBUGGING) << "Blocks added to consumers";
+    return UpdateConsumersResult::addedNewBlocks;
+  } else {
+    return UpdateConsumersResult::nothingChanged;
+  }
 }
 
 void BlockchainSynchronizer::startPoolSync() {

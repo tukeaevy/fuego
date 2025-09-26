@@ -1,19 +1,20 @@
-// Copyright (c) 2017-2022 Fuego Developers
-// Copyright (c) 2018-2019 Conceal Network & Conceal Devs
-// Copyright (c) 2016-2019 The Karbowanec developers
-// Copyright (c) 2012-2018 The CryptoNote developers
+// Copyright (c) 2012-2017, The CryptoNote developers, The Bytecoin developers
+// Copyright (c) 2016-2020, The Karbo developers
 //
-// This file is part of Fuego.
+// This file is part of Karbo.
 //
-// Fuego is free software distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the
-// implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-// PURPOSE. You can redistribute it and/or modify it under the terms
-// of the GNU General Public License v3 or later versions as published
-// by the Free Software Foundation. Fuego includes elements written
-// by third parties. See file labeled LICENSE for more details.
-// You should have received a copy of the GNU General Public License
-// along with Fuego. If not, see <https://www.gnu.org/licenses/>.
+// Karbo is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Karbo is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with Karbo.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "TransfersContainer.h"
 #include "IWalletLegacy.h"
@@ -418,54 +419,103 @@ bool TransfersContainer::markTransactionConfirmed(const TransactionBlockInfo& bl
     return false;
   }
 
-  auto txInfo = *transactionIt;
-  txInfo.blockHeight = block.height;
-  txInfo.timestamp = block.timestamp;
-  m_transactions.replace(transactionIt, txInfo);
+  try {
+    auto txInfo = *transactionIt;
+    txInfo.blockHeight = block.height;
+    txInfo.timestamp = block.timestamp;
+    m_transactions.replace(transactionIt, txInfo);
 
-  auto availableRange = m_unconfirmedTransfers.get<ContainingTransactionIndex>().equal_range(transactionHash);
-  for (auto transferIt = availableRange.first; transferIt != availableRange.second; ) {
-    auto transfer = *transferIt;
-    assert(transfer.blockHeight == WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT);
-    assert(transfer.globalOutputIndex == UNCONFIRMED_TRANSACTION_GLOBAL_OUTPUT_INDEX);
-    if (transfer.outputInTransaction >= globalIndices.size()) {
-      throw std::invalid_argument("Not enough elements in globalIndices");
-    }
+    auto availableRange = m_unconfirmedTransfers.get<ContainingTransactionIndex>().equal_range(transactionHash);
 
-    transfer.blockHeight = block.height;
-    transfer.transactionIndex = block.transactionIndex;
-    transfer.globalOutputIndex = globalIndices[transfer.outputInTransaction];
+    for (auto transferIt = availableRange.first; transferIt != availableRange.second; ) {
+      auto transfer = *transferIt;
+      assert(transfer.blockHeight == WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT);
+      assert(transfer.globalOutputIndex == UNCONFIRMED_TRANSACTION_GLOBAL_OUTPUT_INDEX);
 
-    if (transfer.type == TransactionTypes::OutputType::Multisignature) {
-      SpentOutputDescriptor descriptor(transfer);
-      if (m_availableTransfers.get<SpentOutputDescriptorIndex>().count(descriptor) > 0 ||
-          m_spentTransfers.get<SpentOutputDescriptorIndex>().count(descriptor) > 0) {
-        // This exception breaks TransfersContainer consistency
-        throw std::runtime_error("Transfer already exists");
+      if (transfer.outputInTransaction >= globalIndices.size()) {
+        auto message = "Failed to confirm transaction: not enough elements in globalIndices";
+        m_logger(ERROR, BRIGHT_RED) << message << ", globalIndices.size() " << globalIndices.size() << ", output index " << transfer.outputInTransaction;
+        throw std::invalid_argument(message);
+      }
+
+      transfer.blockHeight = block.height;
+      transfer.transactionIndex = block.transactionIndex;
+      transfer.globalOutputIndex = globalIndices[transfer.outputInTransaction];
+
+      if (transfer.type == TransactionTypes::OutputType::Multisignature) {
+        SpentOutputDescriptor descriptor(transfer);
+        if (m_availableTransfers.get<SpentOutputDescriptorIndex>().count(descriptor) > 0 ||
+            m_spentTransfers.get<SpentOutputDescriptorIndex>().count(descriptor) > 0) {
+          // This exception breaks TransfersContainer consistency
+          auto message = "Failed to confirm transaction: multisignature output already exists";
+          m_logger(ERROR, BRIGHT_RED) << message << ", amount " << m_currency.formatAmount(transfer.amount) << ", global index " << transfer.globalOutputIndex;
+          throw std::runtime_error(message);
+        }
+      }
+
+      auto result = m_availableTransfers.emplace(std::move(transfer));
+      (void)result; // Disable unused warning
+      assert(result.second);
+
+      transferIt = m_unconfirmedTransfers.get<ContainingTransactionIndex>().erase(transferIt);
+
+      if (transfer.type == TransactionTypes::OutputType::Key) {
+        updateTransfersVisibility(transfer.keyImage);
       }
     }
 
-    addUnlockJob(transfer);
+    auto& spendingTransactionIndex = m_spentTransfers.get<SpendingTransactionIndex>();
+    auto spentRange = spendingTransactionIndex.equal_range(transactionHash);
+    for (auto transferIt = spentRange.first; transferIt != spentRange.second; ++transferIt) {
+      auto transfer = *transferIt;
+      assert(transfer.spendingBlock.height == WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT);
 
-    auto result = m_availableTransfers.emplace(std::move(transfer));
-    (void)result; // Disable unused warning
-    assert(result.second);
-
-    transferIt = m_unconfirmedTransfers.get<ContainingTransactionIndex>().erase(transferIt);
-
-    if (transfer.type == TransactionTypes::OutputType::Key) {
-      updateTransfersVisibility(transfer.keyImage);
+      transfer.spendingBlock = block;
+      spendingTransactionIndex.replace(transferIt, transfer);
     }
-  }
+  } catch (std::exception& e) {
+    m_logger(ERROR, BRIGHT_RED) << "markTransactionConfirmed failed: " << e.what() << ", rollback changes, block index " << block.height <<
+      ", tx " << transactionHash;
 
-  auto& spendingTransactionIndex = m_spentTransfers.get<SpendingTransactionIndex>();
-  auto spentRange = spendingTransactionIndex.equal_range(transactionHash);
-  for (auto transferIt = spentRange.first; transferIt != spentRange.second; ++transferIt) {
-    auto transfer = *transferIt;
-    assert(transfer.spendingBlock.height == WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT);
+    auto txInfo = *transactionIt;
+    txInfo.blockHeight = WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT;
+    txInfo.timestamp = 0;
+    m_transactions.replace(transactionIt, txInfo);
 
-    transfer.spendingBlock = block;
-    spendingTransactionIndex.replace(transferIt, transfer);
+    auto availableRange = m_availableTransfers.get<ContainingTransactionIndex>().equal_range(transactionHash);
+
+    for (auto transferIt = availableRange.first; transferIt != availableRange.second; ) {
+      TransactionOutputInformationEx unconfirmedTransfer = *transferIt;
+      assert(unconfirmedTransfer.blockHeight != WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT);
+      assert(unconfirmedTransfer.globalOutputIndex != UNCONFIRMED_TRANSACTION_GLOBAL_OUTPUT_INDEX);
+
+      unconfirmedTransfer.blockHeight = WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT;
+      unconfirmedTransfer.transactionIndex = 0;
+      unconfirmedTransfer.globalOutputIndex = UNCONFIRMED_TRANSACTION_GLOBAL_OUTPUT_INDEX;
+
+      auto result = m_unconfirmedTransfers.emplace(std::move(unconfirmedTransfer));
+      (void)result; // Disable unused warning
+      assert(result.second);
+
+      transferIt = m_availableTransfers.get<ContainingTransactionIndex>().erase(transferIt);
+
+      if (unconfirmedTransfer.type == TransactionTypes::OutputType::Key) {
+        updateTransfersVisibility(unconfirmedTransfer.keyImage);
+      }
+    }
+
+    auto& spendingTransactionIndex = m_spentTransfers.get<SpendingTransactionIndex>();
+    auto spentRange = spendingTransactionIndex.equal_range(transactionHash);
+    for (auto transferIt = spentRange.first; transferIt != spentRange.second; ++transferIt) {
+      auto spentTransfer = *transferIt;
+      spentTransfer.spendingBlock.height = WALLET_LEGACY_UNCONFIRMED_TRANSACTION_HEIGHT;
+      spentTransfer.spendingBlock.timestamp = 0;
+      spentTransfer.spendingBlock.transactionIndex = 0;
+
+      spendingTransactionIndex.replace(transferIt, spentTransfer);
+    }
+
+    throw;
   }
 
   return true;
@@ -915,6 +965,10 @@ void TransfersContainer::load(std::istream& in) {
   m_availableTransfers = std::move(availableTransfers);
   m_spentTransfers = std::move(spentTransfers);
   m_transfersUnlockJobs = std::move(transfersUnlockJobs);
+
+  // Repair the container if it was broken while handling addTransaction() in previous version of the code
+  // Hope it isn't necessary anymore
+  //repair();
 }
 
 void TransfersContainer::rebuildTransfersUnlockJobs(TransfersUnlockMultiIndex& transfersUnlockJobs, const AvailableTransfersMultiIndex& availableTransfers,
