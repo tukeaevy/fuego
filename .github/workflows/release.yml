@@ -148,42 +148,56 @@ jobs:
         build_folder="build/"
         xfg_ver=$(echo ${{ github.ref }} | sed 's|refs/tags/||')
         release_name="fuego-cli-ubuntu-2204-v$xfg_ver"
+        bundled_name="fuego-cli-ubuntu-2204-bundled-v$xfg_ver"
         
         mkdir "$build_folder"
         cd "$build_folder"
         
         cmake -S .. -B . -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DCMAKE_POLICY_DEFAULT_CMP0167=OLD
         cmake --build . --parallel
+        cd ..
         
-        # Create release package
-        mkdir "$release_name"
+        # Create traditional release package
+        mkdir "$build_folder$release_name"
         
         # Copy and strip executables
         exeFiles=()
-        for f in src/*; do 
+        for f in $build_folder/src/*; do 
           if [[ -x $f && -f $f ]]; then
             strip "$f"
             exeFiles+=("$f")
           fi
         done
-        cp "${exeFiles[@]}" "$release_name/"
+        cp "${exeFiles[@]}" "$build_folder$release_name/"
         
         # Create tar.gz archive
+        cd "$build_folder"
         tar -czf "$release_name.tar.gz" "$release_name"
+        cd ..
         
-        # Calculate SHA256
-        sha256=$(sha256sum "$release_name.tar.gz" | awk '{print toupper($1)}')
+        # Create bundled release with shared libraries
+        ./scripts/bundle_dependencies.sh -o . -n "$bundled_name" -b "$build_folder"
+        tar -czf "$bundled_name.tar.gz" "$bundled_name"
+        
+        # Calculate SHA256 for both
+        sha256=$(sha256sum "$build_folder$release_name.tar.gz" | awk '{print toupper($1)}')
+        bundled_sha256=$(sha256sum "$bundled_name.tar.gz" | awk '{print toupper($1)}')
         
         # Set outputs
         echo "sha256=$sha256" >> $GITHUB_OUTPUT
+        echo "bundled_sha256=$bundled_sha256" >> $GITHUB_OUTPUT
         echo "release_name=$release_name.tar.gz" >> $GITHUB_OUTPUT
+        echo "bundled_name=$bundled_name.tar.gz" >> $GITHUB_OUTPUT
         echo "asset_path=./$build_folder$release_name.tar.gz" >> $GITHUB_OUTPUT
+        echo "bundled_path=./$bundled_name.tar.gz" >> $GITHUB_OUTPUT
         
-    - name: Upload Ubuntu 22.04 artifact
+    - name: Upload Ubuntu 22.04 artifacts
       uses: actions/upload-artifact@v4
       with:
         name: fuego-cli-ubuntu-2204-v${{ github.ref_name }}
-        path: build/fuego-cli-ubuntu-2204-v${{ github.ref_name }}.tar.gz
+        path: |
+          build/fuego-cli-ubuntu-2204-v${{ github.ref_name }}.tar.gz
+          fuego-cli-ubuntu-2204-bundled-v${{ github.ref_name }}.tar.gz
 
   release-ubuntu-24:
     runs-on: ubuntu-24.04
@@ -218,42 +232,56 @@ jobs:
         build_folder="build/"
         xfg_ver=$(echo ${{ github.ref }} | sed 's|refs/tags/||')
         release_name="fuego-cli-ubuntu-2404-v$xfg_ver"
+        bundled_name="fuego-cli-ubuntu-2404-bundled-v$xfg_ver"
         
         mkdir "$build_folder"
         cd "$build_folder"
         
         cmake -S .. -B . -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DCMAKE_POLICY_DEFAULT_CMP0167=OLD
         cmake --build . --parallel
+        cd ..
         
-        # Create release package
-        mkdir "$release_name"
+        # Create traditional release package
+        mkdir "$build_folder$release_name"
         
         # Copy and strip executables
         exeFiles=()
-        for f in src/*; do 
+        for f in $build_folder/src/*; do 
           if [[ -x $f && -f $f ]]; then
             strip "$f"
             exeFiles+=("$f")
           fi
         done
-        cp "${exeFiles[@]}" "$release_name/"
+        cp "${exeFiles[@]}" "$build_folder$release_name/"
         
         # Create tar.gz archive
+        cd "$build_folder"
         tar -czf "$release_name.tar.gz" "$release_name"
+        cd ..
         
-        # Calculate SHA256
-        sha256=$(sha256sum "$release_name.tar.gz" | awk '{print toupper($1)}')
+        # Create bundled release with shared libraries
+        ./scripts/bundle_dependencies.sh -o . -n "$bundled_name" -b "$build_folder"
+        tar -czf "$bundled_name.tar.gz" "$bundled_name"
+        
+        # Calculate SHA256 for both
+        sha256=$(sha256sum "$build_folder$release_name.tar.gz" | awk '{print toupper($1)}')
+        bundled_sha256=$(sha256sum "$bundled_name.tar.gz" | awk '{print toupper($1)}')
         
         # Set outputs
         echo "sha256=$sha256" >> $GITHUB_OUTPUT
+        echo "bundled_sha256=$bundled_sha256" >> $GITHUB_OUTPUT
         echo "release_name=$release_name.tar.gz" >> $GITHUB_OUTPUT
+        echo "bundled_name=$bundled_name.tar.gz" >> $GITHUB_OUTPUT
         echo "asset_path=./$build_folder$release_name.tar.gz" >> $GITHUB_OUTPUT
+        echo "bundled_path=./$bundled_name.tar.gz" >> $GITHUB_OUTPUT
         
-    - name: Upload Ubuntu 24.04 artifact
+    - name: Upload Ubuntu 24.04 artifacts
       uses: actions/upload-artifact@v4
       with:
         name: fuego-cli-ubuntu-2404-v${{ github.ref_name }}
-        path: build/fuego-cli-ubuntu-2404-v${{ github.ref_name }}.tar.gz
+        path: |
+          build/fuego-cli-ubuntu-2404-v${{ github.ref_name }}.tar.gz
+          fuego-cli-ubuntu-2404-bundled-v${{ github.ref_name }}.tar.gz
 
   release-windows:
     runs-on: windows-2022
@@ -377,7 +405,9 @@ jobs:
           ./artifacts/fuego-cli-macOS-intel-v${{ github.ref_name }}/fuego-cli-macOS-intel-v${{ github.ref_name }}.zip
           ./artifacts/fuego-cli-macOS-apple-v${{ github.ref_name }}/fuego-cli-macOS-apple-v${{ github.ref_name }}.zip
           ./artifacts/fuego-cli-ubuntu-2204-v${{ github.ref_name }}/fuego-cli-ubuntu-2204-v${{ github.ref_name }}.tar.gz
+          ./artifacts/fuego-cli-ubuntu-2204-v${{ github.ref_name }}/fuego-cli-ubuntu-2204-bundled-v${{ github.ref_name }}.tar.gz
           ./artifacts/fuego-cli-ubuntu-2404-v${{ github.ref_name }}/fuego-cli-ubuntu-2404-v${{ github.ref_name }}.tar.gz
+          ./artifacts/fuego-cli-ubuntu-2404-v${{ github.ref_name }}/fuego-cli-ubuntu-2404-bundled-v${{ github.ref_name }}.tar.gz
           ./artifacts/fuego-cli-win64-v${{ github.ref_name }}/fuego-cli-win64-v${{ github.ref_name }}.zip
         name: Fuego CLI Suite v${{ github.ref_name }}
         body: |
@@ -391,7 +421,11 @@ jobs:
           
           🐧 **Ubuntu 22.04** - [fuego-cli-ubuntu-2204-v${{ github.ref_name }}.tar.gz](../../releases/download/${{ github.ref_name }}/fuego-cli-ubuntu-2204-v${{ github.ref_name }}.tar.gz)
           
+          🐧 **Ubuntu 22.04 (Bundled)** - [fuego-cli-ubuntu-2204-bundled-v${{ github.ref_name }}.tar.gz](../../releases/download/${{ github.ref_name }}/fuego-cli-ubuntu-2204-bundled-v${{ github.ref_name }}.tar.gz)
+          
           🐧 **Ubuntu 24.04** - [fuego-cli-ubuntu-2404-v${{ github.ref_name }}.tar.gz](../../releases/download/${{ github.ref_name }}/fuego-cli-ubuntu-2404-v${{ github.ref_name }}.tar.gz)
+          
+          🐧 **Ubuntu 24.04 (Bundled)** - [fuego-cli-ubuntu-2404-bundled-v${{ github.ref_name }}.tar.gz](../../releases/download/${{ github.ref_name }}/fuego-cli-ubuntu-2404-bundled-v${{ github.ref_name }}.tar.gz)
           
           🪟 **Windows** - [fuego-cli-win64-v${{ github.ref_name }}.zip](../../releases/download/${{ github.ref_name }}/fuego-cli-win64-v${{ github.ref_name }}.zip)
           
@@ -399,7 +433,14 @@ jobs:
           
           **macOS**: Extract the zip file and run the executables from Terminal
           
-          **Linux**: Extract the tar.gz file and run the executables
+          **Linux (Standard)**: Extract the tar.gz file and run the executables (requires system libraries)
+          
+          **Linux (Bundled)**: Extract the bundled tar.gz file - includes all shared libraries for maximum compatibility
+          ```bash
+          tar -xzf fuego-cli-ubuntu-*-bundled-*.tar.gz
+          cd fuego-cli-ubuntu-*-bundled-*
+          ./fuego-launcher.sh fuegod --help
+          ```
           
           **Windows**: Extract the zip file and run the executables from Command Prompt or PowerShell
           

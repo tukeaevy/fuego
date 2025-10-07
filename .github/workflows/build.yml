@@ -204,11 +204,46 @@ jobs:
             find . -name "CTestTestfile.cmake" -o -name "*test*" -type f | head -10
           fi
 
+      # -------------------- Bundle Dependencies --------------------
+      - name: Bundle shared libraries (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        shell: bash
+        run: |
+          # Create bundled release with shared libraries
+          ./scripts/bundle_dependencies.sh -o . -n "fuego-${{ matrix.os }}-${{ matrix.build_type }}-bundled" -b build
+          
+          # Create tar.gz archive
+          tar -czf "fuego-${{ matrix.os }}-${{ matrix.build_type }}-bundled.tar.gz" "fuego-${{ matrix.os }}-${{ matrix.build_type }}-bundled"
+          
+          echo "Bundle created successfully"
+          ls -la fuego-${{ matrix.os }}-${{ matrix.build_type }}-bundled.tar.gz
+
       # -------------------- Upload Artifacts --------------------
-      - name: Upload artifacts
+      - name: Upload bundled artifacts (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuego-${{ matrix.os }}-${{ matrix.build_type }}-bundled-${{ github.sha }}
+          path: fuego-${{ matrix.os }}-${{ matrix.build_type }}-bundled.tar.gz
+          retention-days: 30
+
+      - name: Upload raw artifacts (macOS/Windows)
+        if: matrix.os != 'ubuntu-22.04'
         uses: actions/upload-artifact@v4
         with:
           name: fuego-${{ matrix.os }}-${{ matrix.build_type }}-${{ github.sha }}
+          path: |
+            build/**/fuegod*
+            build/**/fuego-wallet-cli*
+            build/**/walletd*
+            build/**/optimizer*
+          retention-days: 30
+
+      - name: Upload raw artifacts (Linux - for compatibility)
+        if: matrix.os == 'ubuntu-22.04'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuego-${{ matrix.os }}-${{ matrix.build_type }}-raw-${{ github.sha }}
           path: |
             build/**/fuegod*
             build/**/fuego-wallet-cli*

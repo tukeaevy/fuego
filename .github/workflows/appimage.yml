@@ -112,6 +112,22 @@ jobs:
             fi
           done
           
+          # Bundle shared libraries using our bundling script
+          echo "Bundling shared libraries..."
+          mkdir -p temp_bundle
+          ./scripts/bundle_dependencies.sh -o temp_bundle -n "temp" -b build
+          
+          # Copy libraries from bundle to AppDir
+          if [ -d "temp_bundle/temp/lib" ]; then
+            echo "Copying bundled libraries..."
+            cp -r temp_bundle/temp/lib/* "$appdir/usr/lib/" 2>/dev/null || mkdir -p "$appdir/usr/lib"
+            cp temp_bundle/temp/lib/* "$appdir/usr/lib/" 2>/dev/null || true
+            ls -la "$appdir/usr/lib/" | head -10
+          fi
+          
+          # Clean up temp bundle
+          rm -rf temp_bundle
+          
           # List what we have
           echo "Binaries in AppDir:"
           ls -la "$appdir/usr/bin/"
