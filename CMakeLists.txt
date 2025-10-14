@@ -171,6 +171,11 @@ if(APPLE)
     find_library(Boost_regex_LIBRARY NAMES boost_regex libboost_regex PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
     find_library(Boost_serialization_LIBRARY NAMES boost_serialization libboost_serialization PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
     find_library(Boost_program_options_LIBRARY NAMES boost_program_options libboost_program_options PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
+    
+    # Check if critical libraries were found
+    if(NOT Boost_system_LIBRARY)
+      message(FATAL_ERROR "Boost system library not found at /opt/homebrew/lib. Try 'brew install boost'.")
+    endif()
   elseif(EXISTS "/usr/local")
     set(BOOST_ROOT "/usr/local")
     set(Boost_INCLUDE_DIR "/usr/local/include")
@@ -184,6 +189,11 @@ if(APPLE)
     find_library(Boost_regex_LIBRARY NAMES boost_regex libboost_regex PATHS "/usr/local/lib" NO_DEFAULT_PATH)
     find_library(Boost_serialization_LIBRARY NAMES boost_serialization libboost_serialization PATHS "/usr/local/lib" NO_DEFAULT_PATH)
     find_library(Boost_program_options_LIBRARY NAMES boost_program_options libboost_program_options PATHS "/usr/local/lib" NO_DEFAULT_PATH)
+    
+    # Check if critical libraries were found
+    if(NOT Boost_system_LIBRARY)
+      message(FATAL_ERROR "Boost system library not found at /usr/local/lib. Try 'brew install boost'.")
+    endif()
   endif()
   
   # Debug output for library detection
@@ -217,7 +227,13 @@ if(APPLE)
   else()
     # Fallback to standard FindBoost with explicit module selection
     message(STATUS "Manual Boost detection failed, falling back to FindBoost")
+    # Clear any previous Boost variables to ensure clean detection
+    unset(Boost_FOUND)
+    unset(Boost_LIBRARIES)
+    unset(Boost_INCLUDE_DIRS)
+    # Force use of FindBoost module
     set(Boost_NO_BOOST_CMAKE ON)
+    set(Boost_NO_CMAKE_FIND_ROOT_PATH ON)
     find_package(Boost 1.55 REQUIRED COMPONENTS system filesystem thread date_time chrono regex serialization program_options)
   endif()
 else()
