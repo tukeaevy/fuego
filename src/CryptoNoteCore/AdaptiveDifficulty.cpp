@@ -297,13 +297,13 @@ namespace CryptoNote {
     AdaptiveDifficulty::DifficultyConfig getDefaultFuegoConfig() {
         AdaptiveDifficulty::DifficultyConfig config;
         config.targetTime = CryptoNote::parameters::DIFFICULTY_TARGET; // 480 seconds
-        config.shortWindow = 15;    // Rapid response
-        config.mediumWindow = 45;   // Current window
-        config.longWindow = 120;    // Trend analysis
-        config.minAdjustment = 0.5; // 50% minimum change
-        config.maxAdjustment = 4.0; // 400% maximum change
-        config.emergencyThreshold = 0.1; // 10% emergency threshold
-        config.emergencyWindow = 5; // Emergency response window
+        config.shortWindow = CryptoNote::parameters::DMWDA_SHORT_WINDOW;    // Rapid response
+        config.mediumWindow = CryptoNote::parameters::DMWDA_MEDIUM_WINDOW;   // Current window
+        config.longWindow = CryptoNote::parameters::DMWDA_LONG_WINDOW;    // Trend analysis
+        config.minAdjustment = CryptoNote::parameters::DMWDA_MIN_ADJUSTMENT; // 50% minimum change
+        config.maxAdjustment = CryptoNote::parameters::DMWDA_MAX_ADJUSTMENT; // 400% maximum change
+        config.emergencyThreshold = CryptoNote::parameters::DMWDA_EMERGENCY_THRESHOLD; // 10% emergency threshold
+        config.emergencyWindow = CryptoNote::parameters::DMWDA_EMERGENCY_WINDOW; // Emergency response window
         
         return config;
     }

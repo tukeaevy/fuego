@@ -70,6 +70,17 @@ namespace CryptoNote
 		const size_t   DIFFICULTY_WINDOW_V3                          = 60;  // blocks  Zawy-LWMA1
 		const size_t   DIFFICULTY_WINDOW_V4                          = 45;  // blocks  Zawy-LWMA1 Fuego (~180 block per day)
 
+		// DMWDA (Dynamic Multi-Window Difficulty Algorithm) parameters
+		const uint32_t DMWDA_SHORT_WINDOW                            = 15;   // Rapid response window
+		const uint32_t DMWDA_MEDIUM_WINDOW                           = 45;   // Stability window
+		const uint32_t DMWDA_LONG_WINDOW                             = 120;  // Trend analysis window
+		const uint32_t DMWDA_EMERGENCY_WINDOW                        = 5;    // Emergency response window
+		const double   DMWDA_MIN_ADJUSTMENT                          = 0.5;  // 50% minimum difficulty change
+		const double   DMWDA_MAX_ADJUSTMENT                          = 4.0;  // 400% maximum difficulty change
+		const double   DMWDA_EMERGENCY_THRESHOLD                     = 0.1;  // 10% emergency threshold
+		const double   DMWDA_SMOOTHING_FACTOR                        = 0.3;  // Smoothing factor for oscillations
+		const double   DMWDA_EMERGENCY_BOUNDS                        = 10.0; // Emergency mode bounds (10x)
+
 		const uint64_t MIN_TX_MIXIN_SIZE                             = 2;
                // const uint64_t MIN_TX_MIXIN_SIZE_V9                          = 8;
 		const uint64_t MAX_TX_MIXIN_SIZE                             = 18;
