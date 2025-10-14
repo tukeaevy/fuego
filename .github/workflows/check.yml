@@ -165,7 +165,11 @@ jobs:
           brew install gcc boost
           mkdir "$build_folder"
           cd "$build_folder"
-          cmake -DCMAKE_C_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_CXX_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch_flag }} ..
+          # Set Boost paths for CMake
+          export BOOST_ROOT="/opt/homebrew"
+          export Boost_INCLUDE_DIR="/opt/homebrew/include"
+          export Boost_LIBRARY_DIR="/opt/homebrew/lib"
+          cmake -DCMAKE_C_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_CXX_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch_flag }} -DBOOST_ROOT="/opt/homebrew" ..
           make -j4
           mkdir "$release_name"
           exeFiles=()

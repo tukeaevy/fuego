@@ -1,4 +1,9 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
+
+# Set CMake policies to handle newer Boost versions
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
 
 include(CheckCXXCompilerFlag)
 set(VERSION "0.2")
@@ -146,6 +151,23 @@ if(STATIC)
 endif()
 
 #set(Boost_DEBUG on)
+# Modern Boost configuration for newer versions
+set(Boost_USE_STATIC_LIBS ON)
+
+# For macOS with Homebrew, set the proper paths
+if(APPLE)
+  # Try multiple possible Homebrew paths
+  if(EXISTS "/opt/homebrew")
+    set(BOOST_ROOT "/opt/homebrew")
+    set(Boost_INCLUDE_DIR "/opt/homebrew/include")
+    set(Boost_LIBRARY_DIR "/opt/homebrew/lib")
+  elseif(EXISTS "/usr/local")
+    set(BOOST_ROOT "/usr/local")
+    set(Boost_INCLUDE_DIR "/usr/local/include")
+    set(Boost_LIBRARY_DIR "/usr/local/lib")
+  endif()
+endif()
+
 find_package(Boost 1.55 REQUIRED COMPONENTS system filesystem thread date_time chrono regex serialization program_options)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 
