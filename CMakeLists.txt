@@ -166,8 +166,6 @@ message(STATUS "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
 
 # For macOS with Homebrew, manually set Boost paths to avoid BoostConfig.cmake
-message(STATUS "APPLE: ${APPLE}")
-message(STATUS "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
 if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   # Try multiple possible Homebrew paths
   if(EXISTS "/opt/homebrew")
