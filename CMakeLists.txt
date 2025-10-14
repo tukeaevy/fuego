@@ -186,6 +186,16 @@ if(APPLE)
     find_library(Boost_program_options_LIBRARY NAMES boost_program_options libboost_program_options PATHS "/usr/local/lib" NO_DEFAULT_PATH)
   endif()
   
+  # Debug output for library detection
+  message(STATUS "Boost_system_LIBRARY: ${Boost_system_LIBRARY}")
+  message(STATUS "Boost_filesystem_LIBRARY: ${Boost_filesystem_LIBRARY}")
+  message(STATUS "Boost_thread_LIBRARY: ${Boost_thread_LIBRARY}")
+  message(STATUS "Boost_date_time_LIBRARY: ${Boost_date_time_LIBRARY}")
+  message(STATUS "Boost_chrono_LIBRARY: ${Boost_chrono_LIBRARY}")
+  message(STATUS "Boost_regex_LIBRARY: ${Boost_regex_LIBRARY}")
+  message(STATUS "Boost_serialization_LIBRARY: ${Boost_serialization_LIBRARY}")
+  message(STATUS "Boost_program_options_LIBRARY: ${Boost_program_options_LIBRARY}")
+  
   # Check if all libraries were found
   if(Boost_system_LIBRARY AND Boost_filesystem_LIBRARY AND Boost_thread_LIBRARY AND 
      Boost_date_time_LIBRARY AND Boost_chrono_LIBRARY AND Boost_regex_LIBRARY AND 
@@ -205,8 +215,9 @@ if(APPLE)
     set(Boost_INCLUDE_DIRS ${Boost_INCLUDE_DIR})
     message(STATUS "Boost libraries found manually for macOS")
   else()
-    # Fallback to standard FindBoost
+    # Fallback to standard FindBoost with explicit module selection
     message(STATUS "Manual Boost detection failed, falling back to FindBoost")
+    set(Boost_NO_BOOST_CMAKE ON)
     find_package(Boost 1.55 REQUIRED COMPONENTS system filesystem thread date_time chrono regex serialization program_options)
   endif()
 else()
