@@ -96,6 +96,7 @@ private:
   bool f_on_transaction_json(const F_COMMAND_RPC_GET_TRANSACTION_DETAILS::request& req, F_COMMAND_RPC_GET_TRANSACTION_DETAILS::response& res);
   bool f_on_transactions_pool_json(const F_COMMAND_RPC_GET_POOL::request& req, F_COMMAND_RPC_GET_POOL::response& res);
   bool f_getMixin(const Transaction& transaction, uint64_t& mixin);
+  bool on_get_output_availability(const COMMAND_RPC_GET_OUTPUT_AVAILABILITY::request& req, COMMAND_RPC_GET_OUTPUT_AVAILABILITY::response& res);
 
   Logging::LoggerRef logger;
   core& m_core;

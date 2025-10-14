@@ -945,4 +945,43 @@ struct K_COMMAND_RPC_CHECK_RESERVE_PROOF {
 	};
 };
 
+//-----------------------------------------------
+struct COMMAND_RPC_GET_OUTPUT_AVAILABILITY {
+  struct request {
+    std::vector<uint64_t> amounts;
+    uint64_t min_ring_size;
+
+    void serialize(ISerializer &s) {
+      KV_MEMBER(amounts)
+      KV_MEMBER(min_ring_size)
+    }
+  };
+
+  struct output_availability {
+    uint64_t amount;
+    uint64_t available_count;
+    std::string description;
+
+    void serialize(ISerializer &s) {
+      KV_MEMBER(amount)
+      KV_MEMBER(available_count)
+      KV_MEMBER(description)
+    }
+  };
+
+  struct response {
+    std::vector<output_availability> outputs;
+    uint64_t recommended_ring_size;
+    std::string privacy_level;
+    std::string status;
+
+    void serialize(ISerializer &s) {
+      KV_MEMBER(outputs)
+      KV_MEMBER(recommended_ring_size)
+      KV_MEMBER(privacy_level)
+      KV_MEMBER(status)
+    }
+  };
+};
+
 }

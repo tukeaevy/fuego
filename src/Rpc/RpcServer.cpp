@@ -32,6 +32,7 @@
 #include "CryptoNoteCore/Miner.h"
 #include "CryptoNoteCore/TransactionExtra.h"
 #include "CryptoNoteProtocol/ICryptoNoteProtocolQuery.h"
+#include "DynamicRingSize.h"
 
 #include "P2p/NetNode.h"
 
@@ -95,6 +96,7 @@ std::unordered_map<std::string, RpcServer::RpcHandler<RpcServer::HandlerFunction
   { "/queryblockslite.bin", { binMethod<COMMAND_RPC_QUERY_BLOCKS_LITE>(&RpcServer::on_query_blocks_lite), false } },
   { "/get_o_indexes.bin", { binMethod<COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES>(&RpcServer::on_get_indexes), false } },
   { "/getrandom_outs.bin", { binMethod<COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS>(&RpcServer::on_get_random_outs), false } },
+  { "/get_output_availability.bin", { binMethod<COMMAND_RPC_GET_OUTPUT_AVAILABILITY>(&RpcServer::on_get_output_availability), false } },
   { "/get_pool_changes.bin", { binMethod<COMMAND_RPC_GET_POOL_CHANGES>(&RpcServer::onGetPoolChanges), false } },
   { "/get_pool_changes_lite.bin", { binMethod<COMMAND_RPC_GET_POOL_CHANGES_LITE>(&RpcServer::onGetPoolChangesLite), false } },
 
@@ -585,6 +587,94 @@ bool RpcServer::on_get_random_outs(const COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOU
   std::string s = ss.str();
   logger(TRACE) << "COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS: " << ENDL << s;
   res.status = CORE_RPC_STATUS_OK;
+  return true;
+}
+
+bool RpcServer::on_get_output_availability(const COMMAND_RPC_GET_OUTPUT_AVAILABILITY::request& req, COMMAND_RPC_GET_OUTPUT_AVAILABILITY::response& res) {
+  res.status = "Failed";
+  
+  try {
+    // Get current blockchain height and block version
+    uint32_t height = m_core.get_current_blockchain_height() - 1;
+    uint8_t blockMajorVersion = m_core.getBlockMajorVersionForHeight(height);
+    
+    // For older block versions, use static ring size
+    if (blockMajorVersion < CryptoNote::parameters::BLOCK_MAJOR_VERSION_10) {
+      res.status = "Dynamic mixin not supported for this block version";
+      return true;
+    }
+    
+    // Query available outputs for each amount
+    for (uint64_t amount : req.amounts) {
+      COMMAND_RPC_GET_OUTPUT_AVAILABILITY::output_availability output;
+      output.amount = amount;
+      
+      // Get available outputs for this amount
+      COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::request randomReq;
+      randomReq.amounts.push_back(amount);
+      randomReq.outs_count = 1000; // Request a large number to get total count
+      
+      COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::response randomRes;
+      if (m_core.get_random_outs_for_amounts(randomReq, randomRes)) {
+        // Find the output for this amount
+        for (const auto& outs : randomRes.outs) {
+          if (outs.amount == amount) {
+            output.available_count = outs.outs.size();
+            break;
+          }
+        }
+      } else {
+        output.available_count = 0;
+      }
+      
+      // Generate description based on availability
+      if (output.available_count >= 18) {
+        output.description = "Maximum Privacy Available";
+      } else if (output.available_count >= 15) {
+        output.description = "Strong Privacy Available";
+      } else if (output.available_count >= 12) {
+        output.description = "Better Privacy Available";
+      } else if (output.available_count >= 10) {
+        output.description = "Good Privacy Available";
+      } else if (output.available_count >= 8) {
+        output.description = "Enhanced Privacy Available";
+      } else if (output.available_count > 0) {
+        output.description = "Limited Privacy Available";
+      } else {
+        output.description = "No Outputs Available";
+      }
+      
+      res.outputs.push_back(output);
+    }
+    
+    // Calculate recommended ring size using DynamicRingSizeCalculator
+    std::vector<CryptoNote::OutputInfo> outputInfos;
+    for (const auto& output : res.outputs) {
+      outputInfos.emplace_back(output.amount, output.available_count, output.description);
+    }
+    
+    // Calculate optimal ring size
+    res.recommended_ring_size = CryptoNote::DynamicRingSizeCalculator::calculateOptimalRingSize(
+      0, // amount doesn't matter for this calculation
+      outputInfos,
+      blockMajorVersion,
+      req.min_ring_size,
+      m_core.currency().maxMixin()
+    );
+    
+    // Get privacy level description
+    res.privacy_level = CryptoNote::DynamicRingSizeCalculator::getPrivacyLevelDescription(res.recommended_ring_size);
+    
+    res.status = CORE_RPC_STATUS_OK;
+    
+    logger(TRACE) << "COMMAND_RPC_GET_OUTPUT_AVAILABILITY: Recommended ring size " << res.recommended_ring_size 
+                  << " (" << res.privacy_level << ")";
+    
+  } catch (const std::exception& e) {
+    res.status = "Error: " + std::string(e.what());
+    logger(ERROR) << "Error in on_get_output_availability: " << e.what();
+  }
+  
   return true;
 }
 

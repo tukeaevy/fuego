@@ -26,6 +26,7 @@
 #include "version.h"
 #include <boost/format.hpp>
 #include "math.h"
+#include "DynamicRingSize.h"
 
 namespace
 {
@@ -60,6 +61,7 @@ DaemonCommandsHandler::DaemonCommandsHandler(CryptoNote::core& core, CryptoNote:
   m_consoleHandler.setHandler("print_ban", boost::bind(&DaemonCommandsHandler::print_ban, this, boost::arg<1>()), "Print banned nodes");
   m_consoleHandler.setHandler("ban", boost::bind(&DaemonCommandsHandler::ban, this, boost::arg<1>()), "Ban a given <IP> for a given amount of <seconds>, ban <IP> [<seconds>]");
   m_consoleHandler.setHandler("unban", boost::bind(&DaemonCommandsHandler::unban, this, boost::arg<1>()), "Unban a given <IP>, unban <IP>");
+  m_consoleHandler.setHandler("query_outputs", boost::bind(&DaemonCommandsHandler::query_output_availability, this, boost::arg<1>()), "Query output availability for dynamic mixin, query_outputs <amount1> [amount2] [amount3] ...");
 }
 
 //--------------------------------------------------------------------------------
@@ -486,4 +488,131 @@ bool DaemonCommandsHandler::unban(const std::vector<std::string>& args)
     return false;
   }
   return m_srv.unban_host(ip);
+}
+
+bool DaemonCommandsHandler::query_output_availability(const std::vector<std::string>& args)
+{
+  if (args.empty()) {
+    std::cout << "Usage: query_outputs <amount1> [amount2] [amount3] ..." << std::endl;
+    std::cout << "Example: query_outputs 1000000000 5000000000" << std::endl;
+    return true;
+  }
+
+  try {
+    // Parse amounts from arguments
+    std::vector<uint64_t> amounts;
+    for (const auto& arg : args) {
+      uint64_t amount;
+      if (!Common::fromString(arg, amount)) {
+        std::cout << "Invalid amount: " << arg << std::endl;
+        return true;
+      }
+      amounts.push_back(amount);
+    }
+
+    // Get current blockchain height and block version
+    uint32_t height = m_core.get_current_blockchain_height() - 1;
+    uint8_t blockMajorVersion = m_core.getBlockMajorVersionForHeight(height);
+    
+    std::cout << "Querying output availability for dynamic mixin..." << std::endl;
+    std::cout << "Block height: " << height << ", Major version: " << (int)blockMajorVersion << std::endl;
+    std::cout << "Amounts: ";
+    for (size_t i = 0; i < amounts.size(); ++i) {
+      std::cout << m_core.currency().formatAmount(amounts[i]);
+      if (i < amounts.size() - 1) std::cout << ", ";
+    }
+    std::cout << std::endl << std::endl;
+
+    // Query available outputs for each amount
+    for (uint64_t amount : amounts) {
+      std::cout << "Amount: " << m_core.currency().formatAmount(amount) << std::endl;
+      
+      // Get available outputs for this amount
+      COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::request randomReq;
+      randomReq.amounts.push_back(amount);
+      randomReq.outs_count = 1000; // Request a large number to get total count
+      
+      COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::response randomRes;
+      if (m_core.get_random_outs_for_amounts(randomReq, randomRes)) {
+        // Find the output for this amount
+        for (const auto& outs : randomRes.outs) {
+          if (outs.amount == amount) {
+            std::cout << "  Available outputs: " << outs.outs.size() << std::endl;
+            
+            // Generate description based on availability
+            std::string description;
+            if (outs.outs.size() >= 18) {
+              description = "Maximum Privacy Available";
+            } else if (outs.outs.size() >= 15) {
+              description = "Strong Privacy Available";
+            } else if (outs.outs.size() >= 12) {
+              description = "Better Privacy Available";
+            } else if (outs.outs.size() >= 10) {
+              description = "Good Privacy Available";
+            } else if (outs.outs.size() >= 8) {
+              description = "Enhanced Privacy Available";
+            } else if (outs.outs.size() > 0) {
+              description = "Limited Privacy Available";
+            } else {
+              description = "No Outputs Available";
+            }
+            
+            std::cout << "  Privacy level: " << description << std::endl;
+            break;
+          }
+        }
+      } else {
+        std::cout << "  Error querying outputs for this amount" << std::endl;
+      }
+      std::cout << std::endl;
+    }
+
+    // Calculate recommended ring size using DynamicRingSizeCalculator
+    std::vector<CryptoNote::OutputInfo> outputInfos;
+    for (uint64_t amount : amounts) {
+      // Get actual count for this amount
+      COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::request randomReq;
+      randomReq.amounts.push_back(amount);
+      randomReq.outs_count = 1000;
+      
+      COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::response randomRes;
+      size_t availableCount = 0;
+      if (m_core.get_random_outs_for_amounts(randomReq, randomRes)) {
+        for (const auto& outs : randomRes.outs) {
+          if (outs.amount == amount) {
+            availableCount = outs.outs.size();
+            break;
+          }
+        }
+      }
+      
+      outputInfos.emplace_back(amount, availableCount, "Available");
+    }
+    
+    // Calculate optimal ring size
+    uint64_t recommendedRingSize = CryptoNote::DynamicRingSizeCalculator::calculateOptimalRingSize(
+      0, // amount doesn't matter for this calculation
+      outputInfos,
+      blockMajorVersion,
+      CryptoNote::parameters::MIN_TX_MIXIN_SIZE_V10,
+      m_core.currency().maxMixin()
+    );
+    
+    // Get privacy level description
+    std::string privacyLevel = CryptoNote::DynamicRingSizeCalculator::getPrivacyLevelDescription(recommendedRingSize);
+    
+    std::cout << "=== DYNAMIC MIXIN ANALYSIS ===" << std::endl;
+    std::cout << "Recommended ring size: " << recommendedRingSize << std::endl;
+    std::cout << "Privacy level: " << privacyLevel << std::endl;
+    
+    if (recommendedRingSize < CryptoNote::parameters::MIN_TX_MIXIN_SIZE_V10) {
+      std::cout << "WARNING: Insufficient outputs for minimum ring size 8!" << std::endl;
+      std::cout << "Consider running wallet optimizer to consolidate outputs." << std::endl;
+    }
+    
+  } catch (const std::exception& e) {
+    std::cout << "Error: " << e.what() << std::endl;
+  }
+
+  return true;
 }

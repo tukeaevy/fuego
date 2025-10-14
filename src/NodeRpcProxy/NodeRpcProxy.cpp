@@ -473,6 +473,18 @@ void NodeRpcProxy::isSynchronized(bool& syncStatus, const Callback& callback) {
   callback(std::error_code());
 }
 
+void NodeRpcProxy::getOutputAvailability(std::vector<uint64_t>&& amounts, uint64_t minRingSize, std::vector<COMMAND_RPC_GET_OUTPUT_AVAILABILITY::output_availability>& outputs, uint64_t& recommendedRingSize, std::string& privacyLevel, const Callback& callback) {
+  std::lock_guard<std::mutex> lock(m_mutex);
+  if (m_state != STATE_INITIALIZED) {
+    callback(make_error_code(error::NOT_INITIALIZED));
+    return;
+  }
+
+  scheduleRequest([this, amounts, minRingSize, &outputs, &recommendedRingSize, &privacyLevel]() mutable -> std::error_code {
+    return doGetOutputAvailability(amounts, minRingSize, outputs, recommendedRingSize, privacyLevel);
+  }, callback);
+}
+
 std::error_code NodeRpcProxy::doRelayTransaction(const CryptoNote::Transaction& transaction) {
   COMMAND_RPC_SEND_RAW_TX::request req;
   COMMAND_RPC_SEND_RAW_TX::response rsp;
@@ -623,6 +635,23 @@ std::error_code NodeRpcProxy::doGetTransaction(const Crypto::Hash &transactionHa
   if (!parseAndValidateTransactionFromBinaryArray(tx_blob, transaction, tx_hash, tx_prefixt_hash) || tx_hash != transactionHash)
   {
     return make_error_code(error::INTERNAL_NODE_ERROR);
+  }
+
+  return ec;
+}
+
+std::error_code NodeRpcProxy::doGetOutputAvailability(std::vector<uint64_t>& amounts, uint64_t minRingSize, std::vector<COMMAND_RPC_GET_OUTPUT_AVAILABILITY::output_availability>& outputs, uint64_t& recommendedRingSize, std::string& privacyLevel) {
+  COMMAND_RPC_GET_OUTPUT_AVAILABILITY::request req = AUTO_VAL_INIT(req);
+  COMMAND_RPC_GET_OUTPUT_AVAILABILITY::response rsp = AUTO_VAL_INIT(rsp);
+  
+  req.amounts = amounts;
+  req.min_ring_size = minRingSize;
+
+  std::error_code ec = binaryCommand("/get_output_availability.bin", req, rsp);
+  if (!ec) {
+    outputs = rsp.outputs;
+    recommendedRingSize = rsp.recommended_ring_size;
+    privacyLevel = rsp.privacy_level;
   }
 
   return ec;

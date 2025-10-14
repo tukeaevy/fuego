@@ -79,6 +79,7 @@ public:
   virtual void getTransactionsByPaymentId(const Crypto::Hash& paymentId, std::vector<TransactionDetails>& transactions, const Callback& callback) override;
   virtual void getPoolTransactions(uint64_t timestampBegin, uint64_t timestampEnd, uint32_t transactionsNumberLimit, std::vector<TransactionDetails>& transactions, uint64_t& transactionsNumberWithinTimestamps, const Callback& callback) override;
   virtual void isSynchronized(bool& syncStatus, const Callback& callback) override;
+  virtual void getOutputAvailability(std::vector<uint64_t>&& amounts, uint64_t minRingSize, std::vector<COMMAND_RPC_GET_OUTPUT_AVAILABILITY::output_availability>& outputs, uint64_t& recommendedRingSize, std::string& privacyLevel, const Callback& callback) override;
 
   unsigned int rpcTimeout() const { return m_rpcTimeout; }
   void rpcTimeout(unsigned int val) { m_rpcTimeout = val; }
@@ -108,6 +109,7 @@ private:
           std::vector<std::unique_ptr<ITransactionReader>>& newTxs, std::vector<Crypto::Hash>& deletedTxIds);
   virtual void getTransaction(const Crypto::Hash &transactionHash, CryptoNote::Transaction &transaction, const Callback &callback) override;
   std::error_code doGetTransaction(const Crypto::Hash &transactionHash, CryptoNote::Transaction &transaction);
+  std::error_code doGetOutputAvailability(std::vector<uint64_t>& amounts, uint64_t minRingSize, std::vector<COMMAND_RPC_GET_OUTPUT_AVAILABILITY::output_availability>& outputs, uint64_t& recommendedRingSize, std::string& privacyLevel);
 
   void scheduleRequest(std::function<std::error_code()>&& procedure, const Callback& callback);
 template <typename Request, typename Response>
