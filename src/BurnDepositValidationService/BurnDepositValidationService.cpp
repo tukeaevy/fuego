@@ -5,9 +5,6 @@
 #include "Logging/LoggerRef.h"
 #include "Common/StringTools.h"
 #include "crypto/crypto.h"
-#include "EldernodeIndexManager.h"
-#include "EldernodeIndexManager/EldernodeRandomSelector.h"
-#include "EldernodeIndexTypes.h"
 #include <chrono>
 #include <algorithm>
 #include <sstream>
