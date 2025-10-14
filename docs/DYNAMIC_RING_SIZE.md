@@ -143,7 +143,7 @@ size_t calculateOptimalRingSizeWithQuery(
 When there are insufficient outputs to achieve ring size 8 (minimum for BlockMajorVersion 10+):
 
 **Error Code**: `INSUFFICIENT_OUTPUTS_FOR_RING_SIZE`
-**Error Message**: "Insufficient outputs for minimum ring size. Please run wallet optimizer to consolidate outputs."
+**Error Message**: "Insufficient outputs for transaction amount. Please run wallet optimizer to consolidate outputs."
 
 **User Action Required**:
 1. Run wallet optimizer to consolidate outputs
