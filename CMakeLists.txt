@@ -145,9 +145,9 @@ if(STATIC)
   set(Boost_USE_STATIC_RUNTIME ON)
 endif()
 
-# Use modern Boost configuration for Boost 1.70+
+# Use legacy FindBoost module for better compatibility with Homebrew Boost
 if(POLICY CMP0167)
-  cmake_policy(SET CMP0167 NEW)
+  cmake_policy(SET CMP0167 OLD)
 endif()
 
 #set(Boost_DEBUG on)

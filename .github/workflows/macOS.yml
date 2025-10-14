@@ -29,6 +29,8 @@ jobs:
           xfg_ver=$(echo ${{ github.ref }} | sed 's|refs/tags/||')
           release_name="fuego-cli-macOS-${{ matrix.arch }}-v$xfg_ver"
           brew install gcc boost cmake
+          # Ensure Boost development files are properly installed
+          brew reinstall boost
           mkdir "$build_folder"
           cd "$build_folder"
           # Set CMAKE_PREFIX_PATH to help CMake find Boost libraries installed via Homebrew
@@ -42,6 +44,10 @@ jobs:
           # Debug: Show Boost installation paths
           echo "CMAKE_PREFIX_PATH: $CMAKE_PREFIX_PATH"
           find /opt/homebrew /usr/local -name "*boost*" -type d 2>/dev/null | head -10 || true
+          echo "Boost library files:"
+          find /opt/homebrew /usr/local -name "*boost*" -name "*.dylib" 2>/dev/null | head -10 || true
+          echo "Boost CMake files:"
+          find /opt/homebrew /usr/local -name "*boost*" -name "*.cmake" 2>/dev/null | head -10 || true
           
           cmake -DCMAKE_C_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_CXX_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch_flag }} ..
           make -j$(sysctl -n hw.ncpu)
