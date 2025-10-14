@@ -599,7 +599,7 @@ bool RpcServer::on_get_output_availability(const COMMAND_RPC_GET_OUTPUT_AVAILABI
     uint8_t blockMajorVersion = m_core.getBlockMajorVersionForHeight(height);
     
     // For older block versions, use static ring size
-    if (blockMajorVersion < CryptoNote::parameters::BLOCK_MAJOR_VERSION_10) {
+    if (blockMajorVersion < CryptoNote::BLOCK_MAJOR_VERSION_10) {
       res.status = "Dynamic mixin not supported for this block version";
       return true;
     }
