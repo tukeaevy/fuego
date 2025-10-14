@@ -84,6 +84,18 @@ public:
   uint64_t moneySupply() const { return m_moneySupply; }
   size_t cryptonoteCoinVersion() const { return m_cryptonoteCoinVersion; }
 
+  // Dynamic money supply methods
+  uint64_t getBaseMoneySupply() const { return m_baseMoneySupply; }
+  uint64_t getTotalSupply() const;
+  uint64_t getCirculatingSupply() const;
+  uint64_t getBlockRewardSupply() const;
+  uint64_t getTotalBurnedXfg() const { return m_totalBurnedXfg; }
+  uint64_t getTotalRebornXfg() const { return m_totalRebornXfg; }
+  void addBurnedXfg(uint64_t amount);
+  void addRebornXfg(uint64_t amount);
+  double getBurnPercentage() const;
+  double getRebornPercentage() const;
+
   size_t rewardBlocksWindow() const { return m_rewardBlocksWindow; }
 
 
@@ -250,6 +262,14 @@ private:
   unsigned int m_emissionSpeedFactor_FANGO;
   unsigned int m_emissionSpeedFactor_FUEGO;
 
+  // Dynamic money supply
+  uint64_t m_baseMoneySupply;
+  uint64_t m_totalBurnedXfg;
+  uint64_t m_totalRebornXfg;
+  uint64_t m_totalSupply;
+  uint64_t m_circulatingSupply;
+  uint64_t m_blockRewardSupply;
+
   size_t m_cryptonoteCoinVersion;
 
   size_t m_rewardBlocksWindow;
@@ -352,6 +372,14 @@ public:
   CurrencyBuilder& emissionSpeedFactor_FANGO(unsigned int val);
   CurrencyBuilder& emissionSpeedFactor_FUEGO(unsigned int val);
   CurrencyBuilder& cryptonoteCoinVersion(size_t val) { m_currency.m_cryptonoteCoinVersion = val; return *this; }
+
+  // Dynamic money supply builders
+  CurrencyBuilder& baseMoneySupply(uint64_t val) { m_currency.m_baseMoneySupply = val; return *this; }
+  CurrencyBuilder& totalBurnedXfg(uint64_t val) { m_currency.m_totalBurnedXfg = val; return *this; }
+  CurrencyBuilder& totalRebornXfg(uint64_t val) { m_currency.m_totalRebornXfg = val; return *this; }
+  CurrencyBuilder& totalSupply(uint64_t val) { m_currency.m_totalSupply = val; return *this; }
+  CurrencyBuilder& circulatingSupply(uint64_t val) { m_currency.m_circulatingSupply = val; return *this; }
+  CurrencyBuilder& blockRewardSupply(uint64_t val) { m_currency.m_blockRewardSupply = val; return *this; }
 
   CurrencyBuilder& rewardBlocksWindow(size_t val) { m_currency.m_rewardBlocksWindow = val; return *this; }
   CurrencyBuilder& blockGrantedFullRewardZone(size_t val) { m_currency.m_blockGrantedFullRewardZone = val; return *this; }

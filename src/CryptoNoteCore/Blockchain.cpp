@@ -35,6 +35,7 @@
 #include "TransactionExtra.h"
 #include "CryptoNoteConfig.h"
 #include "parallel_hashmap/phmap_dump.h"
+#include "BurnDepositValidationService.h"
 
 using namespace Logging;
 using namespace Common;
@@ -2238,6 +2239,18 @@ bool Blockchain::pushBlock(const Block &blockData, const std::vector<Transaction
 	  uint64_t out_amount = getOutputAmount(transactions[i]);
     uint64_t fee = in_amount < out_amount ? CryptoNote::parameters::MINIMUM_FEE : in_amount - out_amount;
 
+    // Check for burn transactions (transactions with undefined output key)
+    uint64_t burn_amount = 0;
+    for (const auto& output : transactions[i].outputs) {
+      if (output.target.type() == typeid(KeyOutput)) {
+        const KeyOutput& key_output = boost::get<KeyOutput>(output.target);
+        // Check if this is a burn transaction (undefined output key)
+        if (key_output.key == Crypto::KeyImage{}) {
+          burn_amount += output.amount;
+        }
+      }
+    }
+
     bool isTransactionValid = true;
     if (block.bl.majorVersion < BLOCK_MAJOR_VERSION_8 && transactions[i].version > TRANSACTION_VERSION_1) {
       isTransactionValid = false;
@@ -2265,6 +2278,12 @@ bool Blockchain::pushBlock(const Block &blockData, const std::vector<Transaction
 
     ++transactionIndex.transaction;
     pushTransaction(block, tx_id, transactionIndex);
+
+    // Process burn transactions
+    if (burn_amount > 0) {
+      m_currency.addBurnedXfg(burn_amount);
+      logger(INFO, BRIGHT_YELLOW) << "Burn transaction detected: " << tx_id << ", amount: " << m_currency.formatAmount(burn_amount) << " XFG";
+    }
 
     cumulative_block_size += blob_size;
     fee_summary += fee;

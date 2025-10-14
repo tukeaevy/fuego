@@ -55,6 +55,32 @@ struct COMMAND_RPC_GET_HEIGHT {
   };
 };
 
+struct COMMAND_RPC_GET_BURN_INFO {
+  typedef EMPTY_STRUCT request;
+
+  struct response {
+    std::string status;
+    uint64_t total_burned_xfg;
+    uint64_t total_reborn_xfg;
+    uint64_t total_supply;
+    uint64_t circulating_supply;
+    uint64_t base_money_supply;
+    double burn_percentage;
+    double reborn_percentage;
+
+    void serialize(ISerializer &s) {
+      KV_MEMBER(status)
+      KV_MEMBER(total_burned_xfg)
+      KV_MEMBER(total_reborn_xfg)
+      KV_MEMBER(total_supply)
+      KV_MEMBER(circulating_supply)
+      KV_MEMBER(base_money_supply)
+      KV_MEMBER(burn_percentage)
+      KV_MEMBER(reborn_percentage)
+    }
+  };
+};
+
 struct COMMAND_RPC_GET_BLOCKS_FAST {
 
   struct request {
@@ -325,6 +351,10 @@ struct COMMAND_RPC_GET_INFO {
     uint64_t last_block_reward;
     uint64_t last_block_timestamp;
     uint64_t last_block_difficulty;
+    uint64_t total_burned_xfg;
+    uint64_t total_supply;
+    uint64_t circulating_supply;
+    double burn_percentage;
     std::vector<std::string> connections;
 
     void serialize(ISerializer &s) {
@@ -348,6 +378,10 @@ struct COMMAND_RPC_GET_INFO {
       KV_MEMBER(last_block_reward)
       KV_MEMBER(last_block_timestamp)
       KV_MEMBER(last_block_difficulty)
+      KV_MEMBER(total_burned_xfg)
+      KV_MEMBER(total_supply)
+      KV_MEMBER(circulating_supply)
+      KV_MEMBER(burn_percentage)
       KV_MEMBER(connections)      
     }
   };

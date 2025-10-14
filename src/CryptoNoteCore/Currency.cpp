@@ -1383,6 +1383,14 @@ namespace CryptoNote
 		emissionSpeedFactor_FANGO(parameters::EMISSION_SPEED_FACTOR_FANGO);
                 emissionSpeedFactor_FUEGO(parameters::EMISSION_SPEED_FACTOR_FUEGO);
 
+		// Dynamic money supply initialization
+		baseMoneySupply(parameters::MONEY_SUPPLY);
+		totalBurnedXfg(0);
+		totalRebornXfg(0);
+		totalSupply(parameters::MONEY_SUPPLY);
+		circulatingSupply(parameters::MONEY_SUPPLY);
+		blockRewardSupply(parameters::MONEY_SUPPLY);
+
 
 		cryptonoteCoinVersion(parameters::CRYPTONOTE_COIN_VERSION);
 
@@ -1522,6 +1530,58 @@ namespace CryptoNote
 
 		m_currency.m_upgradeWindow = static_cast<uint32_t>(val);
 		return *this;
+	}
+
+	// Dynamic money supply methods implementation
+	uint64_t Currency::getTotalSupply() const {
+		// Total supply = Base money supply - Burned XFG
+		return m_baseMoneySupply - m_totalBurnedXfg;
+	}
+
+	uint64_t Currency::getCirculatingSupply() const {
+		// Circulating supply = Total supply - Locked deposits (excluding burn deposits)
+		// Note: Locked deposits calculation is handled separately in DepositIndex
+		return m_circulatingSupply;
+	}
+
+	uint64_t Currency::getBlockRewardSupply() const {
+		return m_blockRewardSupply;
+	}
+
+	void Currency::addBurnedXfg(uint64_t amount) {
+		if (amount == 0) return;
+		
+		m_totalBurnedXfg += amount;
+		addRebornXfg(amount); // Automatically add as reborn XFG
+		
+		// Increase base money supply by the burned amount
+		m_baseMoneySupply += amount;
+		
+		// Update total supply
+		m_totalSupply = m_baseMoneySupply - m_totalBurnedXfg;
+		
+		// Update circulating supply (simplified - would need deposit index integration)
+		m_circulatingSupply = m_totalSupply;
+		
+		// Update block reward supply
+		m_blockRewardSupply = m_totalSupply;
+		m_moneySupply = m_blockRewardSupply;
+	}
+
+	void Currency::addRebornXfg(uint64_t amount) {
+		if (amount == 0) return;
+		
+		m_totalRebornXfg += amount;
+	}
+
+	double Currency::getBurnPercentage() const {
+		if (m_baseMoneySupply == 0) return 0.0;
+		return (static_cast<double>(m_totalBurnedXfg) / static_cast<double>(m_baseMoneySupply)) * 100.0;
+	}
+
+	double Currency::getRebornPercentage() const {
+		if (m_baseMoneySupply == 0) return 0.0;
+		return (static_cast<double>(m_totalRebornXfg) / static_cast<double>(m_baseMoneySupply)) * 100.0;
 	}
 
 } // namespace CryptoNote

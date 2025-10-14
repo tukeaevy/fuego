@@ -101,6 +101,7 @@ std::unordered_map<std::string, RpcServer::RpcHandler<RpcServer::HandlerFunction
   // json handlers
   { "/getinfo", { jsonMethod<COMMAND_RPC_GET_INFO>(&RpcServer::on_get_info), true } },
   { "/getheight", { jsonMethod<COMMAND_RPC_GET_HEIGHT>(&RpcServer::on_get_height), true } },
+  { "/getburninfo", { jsonMethod<COMMAND_RPC_GET_BURN_INFO>(&RpcServer::on_get_burn_info), true } },
   { "/gettransactions", { jsonMethod<COMMAND_RPC_GET_TRANSACTIONS>(&RpcServer::on_get_transactions), false } },
   { "/sendrawtransaction", { jsonMethod<COMMAND_RPC_SEND_RAW_TX>(&RpcServer::on_send_raw_tx), false } },
   { "/feeaddress", { jsonMethod<COMMAND_RPC_GET_FEE_ADDRESS>(&RpcServer::on_get_fee_address), true } },
@@ -675,7 +676,25 @@ bool RpcServer::on_get_info(const COMMAND_RPC_GET_INFO::request& req, COMMAND_RP
   res.last_block_reward = block_header.reward;
   m_core.getBlockDifficulty(static_cast<uint32_t>(last_block_height), res.last_block_difficulty);
 
+  // Add burn-related information
+  res.total_burned_xfg = m_core.getCurrency().getTotalBurnedXfg();
+  res.total_supply = m_core.getCurrency().getTotalSupply();
+  res.circulating_supply = m_core.getCurrency().getCirculatingSupply();
+  res.burn_percentage = m_core.getCurrency().getBurnPercentage();
+
   res.connections = m_p2p.get_payload_object().all_connections();
+  return true;
+}
+
+bool RpcServer::on_get_burn_info(const COMMAND_RPC_GET_BURN_INFO::request& req, COMMAND_RPC_GET_BURN_INFO::response& res) {
+  res.status = CORE_RPC_STATUS_OK;
+  res.total_burned_xfg = m_core.getCurrency().getTotalBurnedXfg();
+  res.total_reborn_xfg = m_core.getCurrency().getTotalRebornXfg();
+  res.total_supply = m_core.getCurrency().getTotalSupply();
+  res.circulating_supply = m_core.getCurrency().getCirculatingSupply();
+  res.base_money_supply = m_core.getCurrency().getBaseMoneySupply();
+  res.burn_percentage = m_core.getCurrency().getBurnPercentage();
+  res.reborn_percentage = m_core.getCurrency().getRebornPercentage();
   return true;
 }
 
