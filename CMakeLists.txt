@@ -161,7 +161,7 @@ set(Boost_USE_STATIC_LIBS ON)
 set(Boost_NO_BOOST_CMAKE ON)
 
 # For macOS with Homebrew, manually set Boost paths to avoid BoostConfig.cmake
-if(APPLE)
+if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   # Try multiple possible Homebrew paths
   if(EXISTS "/opt/homebrew")
     set(BOOST_ROOT "/opt/homebrew")
