@@ -163,42 +163,52 @@ if(APPLE)
     set(Boost_INCLUDE_DIR "/opt/homebrew/include")
     set(Boost_LIBRARY_DIR "/opt/homebrew/lib")
     # Manually set library paths to avoid BoostConfig.cmake
-    find_library(Boost_system_LIBRARY NAMES boost_system PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
-    find_library(Boost_filesystem_LIBRARY NAMES boost_filesystem PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
-    find_library(Boost_thread_LIBRARY NAMES boost_thread PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
-    find_library(Boost_date_time_LIBRARY NAMES boost_date_time PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
-    find_library(Boost_chrono_LIBRARY NAMES boost_chrono PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
-    find_library(Boost_regex_LIBRARY NAMES boost_regex PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
-    find_library(Boost_serialization_LIBRARY NAMES boost_serialization PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
-    find_library(Boost_program_options_LIBRARY NAMES boost_program_options PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
+    find_library(Boost_system_LIBRARY NAMES boost_system libboost_system PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
+    find_library(Boost_filesystem_LIBRARY NAMES boost_filesystem libboost_filesystem PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
+    find_library(Boost_thread_LIBRARY NAMES boost_thread libboost_thread PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
+    find_library(Boost_date_time_LIBRARY NAMES boost_date_time libboost_date_time PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
+    find_library(Boost_chrono_LIBRARY NAMES boost_chrono libboost_chrono PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
+    find_library(Boost_regex_LIBRARY NAMES boost_regex libboost_regex PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
+    find_library(Boost_serialization_LIBRARY NAMES boost_serialization libboost_serialization PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
+    find_library(Boost_program_options_LIBRARY NAMES boost_program_options libboost_program_options PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
   elseif(EXISTS "/usr/local")
     set(BOOST_ROOT "/usr/local")
     set(Boost_INCLUDE_DIR "/usr/local/include")
     set(Boost_LIBRARY_DIR "/usr/local/lib")
     # Manually set library paths to avoid BoostConfig.cmake
-    find_library(Boost_system_LIBRARY NAMES boost_system PATHS "/usr/local/lib" NO_DEFAULT_PATH)
-    find_library(Boost_filesystem_LIBRARY NAMES boost_filesystem PATHS "/usr/local/lib" NO_DEFAULT_PATH)
-    find_library(Boost_thread_LIBRARY NAMES boost_thread PATHS "/usr/local/lib" NO_DEFAULT_PATH)
-    find_library(Boost_date_time_LIBRARY NAMES boost_date_time PATHS "/usr/local/lib" NO_DEFAULT_PATH)
-    find_library(Boost_chrono_LIBRARY NAMES boost_chrono PATHS "/usr/local/lib" NO_DEFAULT_PATH)
-    find_library(Boost_regex_LIBRARY NAMES boost_regex PATHS "/usr/local/lib" NO_DEFAULT_PATH)
-    find_library(Boost_serialization_LIBRARY NAMES boost_serialization PATHS "/usr/local/lib" NO_DEFAULT_PATH)
-    find_library(Boost_program_options_LIBRARY NAMES boost_program_options PATHS "/usr/local/lib" NO_DEFAULT_PATH)
+    find_library(Boost_system_LIBRARY NAMES boost_system libboost_system PATHS "/usr/local/lib" NO_DEFAULT_PATH)
+    find_library(Boost_filesystem_LIBRARY NAMES boost_filesystem libboost_filesystem PATHS "/usr/local/lib" NO_DEFAULT_PATH)
+    find_library(Boost_thread_LIBRARY NAMES boost_thread libboost_thread PATHS "/usr/local/lib" NO_DEFAULT_PATH)
+    find_library(Boost_date_time_LIBRARY NAMES boost_date_time libboost_date_time PATHS "/usr/local/lib" NO_DEFAULT_PATH)
+    find_library(Boost_chrono_LIBRARY NAMES boost_chrono libboost_chrono PATHS "/usr/local/lib" NO_DEFAULT_PATH)
+    find_library(Boost_regex_LIBRARY NAMES boost_regex libboost_regex PATHS "/usr/local/lib" NO_DEFAULT_PATH)
+    find_library(Boost_serialization_LIBRARY NAMES boost_serialization libboost_serialization PATHS "/usr/local/lib" NO_DEFAULT_PATH)
+    find_library(Boost_program_options_LIBRARY NAMES boost_program_options libboost_program_options PATHS "/usr/local/lib" NO_DEFAULT_PATH)
   endif()
   
-  # Set Boost variables manually
-  set(Boost_FOUND TRUE)
-  set(Boost_LIBRARIES 
-    ${Boost_system_LIBRARY}
-    ${Boost_filesystem_LIBRARY}
-    ${Boost_thread_LIBRARY}
-    ${Boost_date_time_LIBRARY}
-    ${Boost_chrono_LIBRARY}
-    ${Boost_regex_LIBRARY}
-    ${Boost_serialization_LIBRARY}
-    ${Boost_program_options_LIBRARY}
-  )
-  set(Boost_INCLUDE_DIRS ${Boost_INCLUDE_DIR})
+  # Check if all libraries were found
+  if(Boost_system_LIBRARY AND Boost_filesystem_LIBRARY AND Boost_thread_LIBRARY AND 
+     Boost_date_time_LIBRARY AND Boost_chrono_LIBRARY AND Boost_regex_LIBRARY AND 
+     Boost_serialization_LIBRARY AND Boost_program_options_LIBRARY)
+    # Set Boost variables manually
+    set(Boost_FOUND TRUE)
+    set(Boost_LIBRARIES 
+      ${Boost_system_LIBRARY}
+      ${Boost_filesystem_LIBRARY}
+      ${Boost_thread_LIBRARY}
+      ${Boost_date_time_LIBRARY}
+      ${Boost_chrono_LIBRARY}
+      ${Boost_regex_LIBRARY}
+      ${Boost_serialization_LIBRARY}
+      ${Boost_program_options_LIBRARY}
+    )
+    set(Boost_INCLUDE_DIRS ${Boost_INCLUDE_DIR})
+    message(STATUS "Boost libraries found manually for macOS")
+  else()
+    # Fallback to standard FindBoost
+    message(STATUS "Manual Boost detection failed, falling back to FindBoost")
+    find_package(Boost 1.55 REQUIRED COMPONENTS system filesystem thread date_time chrono regex serialization program_options)
+  endif()
 else()
   # Use standard FindBoost for non-macOS systems
   find_package(Boost 1.55 REQUIRED COMPONENTS system filesystem thread date_time chrono regex serialization program_options)
