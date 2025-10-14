@@ -160,7 +160,14 @@ endif()
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_NO_BOOST_CMAKE ON)
 
+# Debug output for platform detection
+message(STATUS "APPLE: ${APPLE}")
+message(STATUS "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
+message(STATUS "CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
+
 # For macOS with Homebrew, manually set Boost paths to avoid BoostConfig.cmake
+message(STATUS "APPLE: ${APPLE}")
+message(STATUS "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
 if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   # Try multiple possible Homebrew paths
   if(EXISTS "/opt/homebrew")
@@ -168,14 +175,44 @@ if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(Boost_INCLUDE_DIR "/opt/homebrew/include")
     set(Boost_LIBRARY_DIR "/opt/homebrew/lib")
     # Manually set library paths to avoid BoostConfig.cmake
-    find_library(Boost_system_LIBRARY NAMES boost_system libboost_system PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
-    find_library(Boost_filesystem_LIBRARY NAMES boost_filesystem libboost_filesystem PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
-    find_library(Boost_thread_LIBRARY NAMES boost_thread libboost_thread PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
-    find_library(Boost_date_time_LIBRARY NAMES boost_date_time libboost_date_time PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
-    find_library(Boost_chrono_LIBRARY NAMES boost_chrono libboost_chrono PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
-    find_library(Boost_regex_LIBRARY NAMES boost_regex libboost_regex PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
-    find_library(Boost_serialization_LIBRARY NAMES boost_serialization libboost_serialization PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
-    find_library(Boost_program_options_LIBRARY NAMES boost_program_options libboost_program_options PATHS "/opt/homebrew/lib" NO_DEFAULT_PATH)
+    # Look for various library file patterns and extensions
+    find_library(Boost_system_LIBRARY 
+      NAMES boost_system libboost_system boost_system-mt libboost_system-mt
+      PATHS "/opt/homebrew/lib" 
+      NO_DEFAULT_PATH)
+    find_library(Boost_filesystem_LIBRARY 
+      NAMES boost_filesystem libboost_filesystem boost_filesystem-mt libboost_filesystem-mt
+      PATHS "/opt/homebrew/lib" 
+      NO_DEFAULT_PATH)
+    find_library(Boost_thread_LIBRARY 
+      NAMES boost_thread libboost_thread boost_thread-mt libboost_thread-mt
+      PATHS "/opt/homebrew/lib" 
+      NO_DEFAULT_PATH)
+    find_library(Boost_date_time_LIBRARY 
+      NAMES boost_date_time libboost_date_time boost_date_time-mt libboost_date_time-mt
+      PATHS "/opt/homebrew/lib" 
+      NO_DEFAULT_PATH)
+    find_library(Boost_chrono_LIBRARY 
+      NAMES boost_chrono libboost_chrono boost_chrono-mt libboost_chrono-mt
+      PATHS "/opt/homebrew/lib" 
+      NO_DEFAULT_PATH)
+    find_library(Boost_regex_LIBRARY 
+      NAMES boost_regex libboost_regex boost_regex-mt libboost_regex-mt
+      PATHS "/opt/homebrew/lib" 
+      NO_DEFAULT_PATH)
+    find_library(Boost_serialization_LIBRARY 
+      NAMES boost_serialization libboost_serialization boost_serialization-mt libboost_serialization-mt
+      PATHS "/opt/homebrew/lib" 
+      NO_DEFAULT_PATH)
+    find_library(Boost_program_options_LIBRARY 
+      NAMES boost_program_options libboost_program_options boost_program_options-mt libboost_program_options-mt
+      PATHS "/opt/homebrew/lib" 
+      NO_DEFAULT_PATH)
+    
+    # Debug output for library detection
+    message(STATUS "Boost_system_LIBRARY: ${Boost_system_LIBRARY}")
+    message(STATUS "Boost_filesystem_LIBRARY: ${Boost_filesystem_LIBRARY}")
+    message(STATUS "Boost_thread_LIBRARY: ${Boost_thread_LIBRARY}")
     
     # Check if critical libraries were found
     if(NOT Boost_system_LIBRARY)
@@ -186,14 +223,39 @@ if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(Boost_INCLUDE_DIR "/usr/local/include")
     set(Boost_LIBRARY_DIR "/usr/local/lib")
     # Manually set library paths to avoid BoostConfig.cmake
-    find_library(Boost_system_LIBRARY NAMES boost_system libboost_system PATHS "/usr/local/lib" NO_DEFAULT_PATH)
-    find_library(Boost_filesystem_LIBRARY NAMES boost_filesystem libboost_filesystem PATHS "/usr/local/lib" NO_DEFAULT_PATH)
-    find_library(Boost_thread_LIBRARY NAMES boost_thread libboost_thread PATHS "/usr/local/lib" NO_DEFAULT_PATH)
-    find_library(Boost_date_time_LIBRARY NAMES boost_date_time libboost_date_time PATHS "/usr/local/lib" NO_DEFAULT_PATH)
-    find_library(Boost_chrono_LIBRARY NAMES boost_chrono libboost_chrono PATHS "/usr/local/lib" NO_DEFAULT_PATH)
-    find_library(Boost_regex_LIBRARY NAMES boost_regex libboost_regex PATHS "/usr/local/lib" NO_DEFAULT_PATH)
-    find_library(Boost_serialization_LIBRARY NAMES boost_serialization libboost_serialization PATHS "/usr/local/lib" NO_DEFAULT_PATH)
-    find_library(Boost_program_options_LIBRARY NAMES boost_program_options libboost_program_options PATHS "/usr/local/lib" NO_DEFAULT_PATH)
+    # Look for various library file patterns and extensions
+    find_library(Boost_system_LIBRARY 
+      NAMES boost_system libboost_system boost_system-mt libboost_system-mt
+      PATHS "/usr/local/lib" 
+      NO_DEFAULT_PATH)
+    find_library(Boost_filesystem_LIBRARY 
+      NAMES boost_filesystem libboost_filesystem boost_filesystem-mt libboost_filesystem-mt
+      PATHS "/usr/local/lib" 
+      NO_DEFAULT_PATH)
+    find_library(Boost_thread_LIBRARY 
+      NAMES boost_thread libboost_thread boost_thread-mt libboost_thread-mt
+      PATHS "/usr/local/lib" 
+      NO_DEFAULT_PATH)
+    find_library(Boost_date_time_LIBRARY 
+      NAMES boost_date_time libboost_date_time boost_date_time-mt libboost_date_time-mt
+      PATHS "/usr/local/lib" 
+      NO_DEFAULT_PATH)
+    find_library(Boost_chrono_LIBRARY 
+      NAMES boost_chrono libboost_chrono boost_chrono-mt libboost_chrono-mt
+      PATHS "/usr/local/lib" 
+      NO_DEFAULT_PATH)
+    find_library(Boost_regex_LIBRARY 
+      NAMES boost_regex libboost_regex boost_regex-mt libboost_regex-mt
+      PATHS "/usr/local/lib" 
+      NO_DEFAULT_PATH)
+    find_library(Boost_serialization_LIBRARY 
+      NAMES boost_serialization libboost_serialization boost_serialization-mt libboost_serialization-mt
+      PATHS "/usr/local/lib" 
+      NO_DEFAULT_PATH)
+    find_library(Boost_program_options_LIBRARY 
+      NAMES boost_program_options libboost_program_options boost_program_options-mt libboost_program_options-mt
+      PATHS "/usr/local/lib" 
+      NO_DEFAULT_PATH)
     
     # Check if critical libraries were found
     if(NOT Boost_system_LIBRARY)
