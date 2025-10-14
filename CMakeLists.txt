@@ -150,6 +150,11 @@ if(STATIC)
   set(Boost_USE_STATIC_RUNTIME ON)
 endif()
 
+# Set policy to use legacy FindBoost module for Boost 1.70+ compatibility
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 OLD)
+endif()
+
 #set(Boost_DEBUG on)
 # Force use of FindBoost module instead of BoostConfig.cmake for compatibility
 set(Boost_USE_STATIC_LIBS ON)
