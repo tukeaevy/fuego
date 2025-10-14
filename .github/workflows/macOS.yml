@@ -31,6 +31,18 @@ jobs:
           brew install gcc boost cmake
           mkdir "$build_folder"
           cd "$build_folder"
+          # Set CMAKE_PREFIX_PATH to help CMake find Boost libraries installed via Homebrew
+          # Homebrew installs to different paths on Intel vs Apple Silicon Macs
+          if [[ "${{ matrix.arch }}" == "apple" ]]; then
+            export CMAKE_PREFIX_PATH="/opt/homebrew:$CMAKE_PREFIX_PATH"
+          else
+            export CMAKE_PREFIX_PATH="/usr/local:$CMAKE_PREFIX_PATH"
+          fi
+          
+          # Debug: Show Boost installation paths
+          echo "CMAKE_PREFIX_PATH: $CMAKE_PREFIX_PATH"
+          find /opt/homebrew /usr/local -name "*boost*" -type d 2>/dev/null | head -10 || true
+          
           cmake -DCMAKE_C_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_CXX_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch_flag }} ..
           make -j$(sysctl -n hw.ncpu)
           mkdir "$release_name"
