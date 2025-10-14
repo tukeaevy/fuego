@@ -165,12 +165,13 @@ jobs:
           brew install gcc boost
           mkdir "$build_folder"
           cd "$build_folder"
-          # Set Boost paths for CMake
+          # Set Boost paths for CMake and force FindBoost usage
           export BOOST_ROOT="/opt/homebrew"
           export Boost_INCLUDE_DIR="/opt/homebrew/include"
           export Boost_LIBRARY_DIR="/opt/homebrew/lib"
           export Boost_NO_BOOST_CMAKE=ON
-          cmake -DCMAKE_C_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_CXX_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch_flag }} -DBOOST_ROOT="/opt/homebrew" -DBoost_NO_BOOST_CMAKE=ON ..
+          export Boost_NO_CMAKE_FIND_ROOT_PATH=ON
+          cmake -DCMAKE_C_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_CXX_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch_flag }} -DBOOST_ROOT="/opt/homebrew" -DBoost_NO_BOOST_CMAKE=ON -DBoost_NO_CMAKE_FIND_ROOT_PATH=ON -DCMAKE_PREFIX_PATH="/opt/homebrew" ..
           make -j4
           mkdir "$release_name"
           exeFiles=()
