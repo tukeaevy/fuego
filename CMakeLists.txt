@@ -151,8 +151,9 @@ if(STATIC)
 endif()
 
 #set(Boost_DEBUG on)
-# Modern Boost configuration for newer versions
+# Force use of FindBoost module instead of BoostConfig.cmake for compatibility
 set(Boost_USE_STATIC_LIBS ON)
+set(Boost_NO_BOOST_CMAKE ON)
 
 # For macOS with Homebrew, set the proper paths
 if(APPLE)
