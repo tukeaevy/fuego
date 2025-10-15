@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-12
+          - os: macos-13
             arch: intel
             arch_flag: x86_64
           - os: macos-14
@@ -28,11 +28,37 @@ jobs:
           build_folder="build/"
           xfg_ver=$(echo ${{ github.ref }} | sed 's|refs/tags/||')
           release_name="fuego-cli-macOS-${{ matrix.arch }}-v$xfg_ver"
+          
+          # Install dependencies
           brew install gcc boost cmake
+          
+          # Create build directory
           mkdir "$build_folder"
           cd "$build_folder"
-          cmake -DCMAKE_C_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_CXX_FLAGS="-mmacosx-version-min=10.12" -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch_flag }} ..
+          
+          # Configure CMake with proper architecture settings
+          if [ "${{ matrix.arch }}" = "apple" ]; then
+            # Apple Silicon ARM64 specific configuration
+            cmake -DCMAKE_C_FLAGS="-mmacosx-version-min=11.0" \
+                  -DCMAKE_CXX_FLAGS="-mmacosx-version-min=11.0" \
+                  -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch_flag }} \
+                  -DCMAKE_SYSTEM_PROCESSOR=arm64 \
+                  -DARCH=arm64 \
+                  ..
+          else
+            # Intel x86_64 configuration
+            cmake -DCMAKE_C_FLAGS="-mmacosx-version-min=10.12" \
+                  -DCMAKE_CXX_FLAGS="-mmacosx-version-min=10.12" \
+                  -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch_flag }} \
+                  -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
+                  -DARCH=x86_64 \
+                  ..
+          fi
+          
+          # Build with all available cores
           make -j$(sysctl -n hw.ncpu)
+          
+          # Create release package
           mkdir "$release_name"
           exeFiles=()
           for f in src/*; do [[ -x $f && -f $f ]] && strip "$f" && exeFiles+=( "$f" ); done
