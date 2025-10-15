@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2025 Fuego Developers
+// Copyright (c) 2017-2025 Elderfire Privacy Group
 // Copyright (c) 2018-2019 Conceal Network & Conceal Devs
 // Copyright (c) 2016-2019 The Karbowanec developers
 // Copyright (c) 2012-2018 The CryptoNote developers
@@ -17,11 +17,8 @@
 
 #include "Currency.h"
 #include <cctype>
-#include <algorithm>
-#include <numeric>
-#include <cmath>
 #include <boost/algorithm/string/trim.hpp>
-#include <boost/math/special_functions/round.hpp>
+#include <cmath>
 #include <boost/lexical_cast.hpp>
 #include "../Common/Base58.h"
 #include "../Common/int-util.h"
@@ -34,6 +31,9 @@
 #include "CryptoNoteTools.h"
 #include "TransactionExtra.h"
 #include "UpgradeDetector.h"
+#include "../crypto/hash.h"
+#include "../crypto/keccak.h"
+#include <algorithm>
 
 #undef ERROR
 
@@ -86,7 +86,8 @@ namespace CryptoNote
 			m_upgradeHeightV6 = 6;	
 			m_upgradeHeightV7 = 7;	
 			m_upgradeHeightV8 = 8;
-			m_upgradeHeightV9 = 9;
+                     m_upgradeHeightV9 = 9;
+                     m_upgradeHeightV10 = 969696;
 
       m_blocksFileName = "testnet_" + m_blocksFileName;
       m_blocksCacheFileName = "testnet_" + m_blocksCacheFileName;
@@ -166,7 +167,10 @@ namespace CryptoNote
 			return m_upgradeHeightV8;
 		}
 		else if (majorVersion == BLOCK_MAJOR_VERSION_9) {
-			return m_upgradeHeightV9;
+                    return m_upgradeHeightV9;
+		}
+		else if (majorVersion == BLOCK_MAJOR_VERSION_10) {
+                    return m_upgradeHeightV10;
 		}
 		else {
 			return static_cast<uint32_t>(-1);
@@ -801,10 +805,7 @@ namespace CryptoNote
 	difficulty_type Currency::nextDifficulty(uint32_t height, uint8_t blockMajorVersion, std::vector<uint64_t> timestamps,
 		std::vector<difficulty_type> cumulativeDifficulties) const {
 
-		if (blockMajorVersion >= BLOCK_MAJOR_VERSION_10) {
-			return nextDifficultyV6(height, blockMajorVersion, timestamps, cumulativeDifficulties);
-		}
-		else if (blockMajorVersion >= BLOCK_MAJOR_VERSION_7) {
+		if (blockMajorVersion >= BLOCK_MAJOR_VERSION_7) {
 			return nextDifficultyV5(height, blockMajorVersion, timestamps, cumulativeDifficulties);
 		}
 		else if (blockMajorVersion >= BLOCK_MAJOR_VERSION_4) {
@@ -976,7 +977,7 @@ namespace CryptoNote
 		}
 
 		// Keep LWMA sane in case something unforeseen occurs.
-		if (static_cast<int64_t>(boost::math::round(LWMA)) < T / 20)
+            if (static_cast<int64_t>(std::round(LWMA)) < T / 20)
 			LWMA = static_cast<double>(T) / 20;
 
 		harmonic_mean_D = N / sum_inverse_D * adjust;
@@ -1127,142 +1128,6 @@ namespace CryptoNote
 			   return  next_D;
 	}
 
-	difficulty_type Currency::nextDifficultyV6(uint32_t height, uint8_t blockMajorVersion,
-		std::vector<std::uint64_t> timestamps, std::vector<difficulty_type> cumulativeDifficulties) const {
-		
-		// Adaptive Multi-Window Difficulty Algorithm (AMWDA) - V10
-		// Designed for fast adaptation, large swing handling, and block stealing prevention
-		// Activated at BlockMajorVersion 10 (height 969696) alongside Enhanced Privacy
-		// Copyright (c) 2024 Fuego Privacy Group
-		
-		const uint64_t T = CryptoNote::parameters::DIFFICULTY_TARGET; // 480 seconds
-		const uint32_t SHORT_WINDOW = CryptoNote::parameters::DMWDA_SHORT_WINDOW;   // Rapid response window
-		const uint32_t MEDIUM_WINDOW = CryptoNote::parameters::DMWDA_MEDIUM_WINDOW;  // Stability window  
-		const uint32_t LONG_WINDOW = CryptoNote::parameters::DMWDA_LONG_WINDOW;   // Trend analysis window
-		const uint32_t EMERGENCY_WINDOW = CryptoNote::parameters::DMWDA_EMERGENCY_WINDOW; // Emergency response window
-		
-		// Early chain protection
-		if (timestamps.size() < 3) {
-			return 10000;
-		}
-		
-		// Convert cumulative difficulties to individual difficulties
-		std::vector<difficulty_type> difficulties;
-		for (size_t i = 1; i < cumulativeDifficulties.size(); ++i) {
-			difficulties.push_back(cumulativeDifficulties[i] - cumulativeDifficulties[i-1]);
-		}
-		
-		// Detect emergency conditions (sudden hash rate changes)
-		bool emergencyMode = false;
-		if (timestamps.size() >= EMERGENCY_WINDOW + 1) {
-			uint64_t recentTime = timestamps[EMERGENCY_WINDOW] - timestamps[0];
-			uint64_t expectedTime = EMERGENCY_WINDOW * T;
-			
-			// If recent blocks are significantly faster or slower than expected
-			double emergencyThreshold = CryptoNote::parameters::DMWDA_EMERGENCY_THRESHOLD;
-			if (recentTime < expectedTime * emergencyThreshold || recentTime > expectedTime / emergencyThreshold) {
-				emergencyMode = true;
-			}
-		}
-		
-		// Emergency response
-		if (emergencyMode) {
-			uint32_t effectiveWindow = std::min(static_cast<uint32_t>(timestamps.size() - 1), EMERGENCY_WINDOW);
-			double recentSolveTime = static_cast<double>(timestamps[effectiveWindow] - timestamps[0]) / effectiveWindow;
-			uint64_t avgDifficulty = (cumulativeDifficulties[effectiveWindow] - cumulativeDifficulties[0]) / effectiveWindow;
-			
-			double emergencyRatio = static_cast<double>(T) / recentSolveTime;
-			double emergencyThreshold = CryptoNote::parameters::DMWDA_EMERGENCY_THRESHOLD;
-			emergencyRatio = std::max(emergencyThreshold, std::min(1.0 / emergencyThreshold, emergencyRatio)); // Config-based bounds
-			
-			return std::max(static_cast<uint64_t>(10000), 
-							static_cast<uint64_t>(avgDifficulty * emergencyRatio));
-		}
-		
-		// Multi-window LWMA calculation
-		auto calculateLWMA = [&](uint32_t windowSize) -> double {
-			uint32_t effectiveWindow = std::min(static_cast<uint32_t>(timestamps.size() - 1), windowSize);
-			double weightedSum = 0.0;
-			double weightSum = 0.0;
-			
-			for (uint32_t i = 1; i <= effectiveWindow; ++i) {
-				int64_t solveTime = static_cast<int64_t>(timestamps[i]) - static_cast<int64_t>(timestamps[i-1]);
-				
-				// Clamp solve time to prevent manipulation
-				solveTime = std::max(static_cast<int64_t>(T / 10), 
-									std::min(static_cast<int64_t>(T * 10), solveTime));
-				
-				double weight = static_cast<double>(i);
-				weightedSum += solveTime * weight;
-				weightSum += weight;
-			}
-			
-			return weightedSum / weightSum;
-		};
-		
-		// Calculate LWMA for different windows
-		double shortLWMA = calculateLWMA(SHORT_WINDOW);
-		double mediumLWMA = calculateLWMA(MEDIUM_WINDOW);
-		double longLWMA = calculateLWMA(LONG_WINDOW);
-		
-		// Calculate confidence score based on solve time variance
-		double confidence = CryptoNote::parameters::DMWDA_CONFIDENCE_MAX;
-		if (timestamps.size() >= 10) {
-			std::vector<double> solveTimes;
-			for (size_t i = 1; i < std::min(static_cast<size_t>(10), timestamps.size()); ++i) {
-				solveTimes.push_back(static_cast<double>(timestamps[i] - timestamps[i-1]));
-			}
-			
-			double mean = std::accumulate(solveTimes.begin(), solveTimes.end(), 0.0) / solveTimes.size();
-			double variance = 0.0;
-			for (double st : solveTimes) {
-				variance += (st - mean) * (st - mean);
-			}
-			variance /= solveTimes.size();
-			
-			double coefficientOfVariation = std::sqrt(variance) / mean;
-			confidence = std::max(CryptoNote::parameters::DMWDA_CONFIDENCE_MIN, 
-								std::min(CryptoNote::parameters::DMWDA_CONFIDENCE_MAX, 1.0 - coefficientOfVariation));
-		}
-		
-		// Adaptive weighting based on confidence
-		double shortWeight = CryptoNote::parameters::DMWDA_WEIGHT_SHORT * confidence;
-		double mediumWeight = CryptoNote::parameters::DMWDA_WEIGHT_MEDIUM * confidence;
-		double longWeight = CryptoNote::parameters::DMWDA_WEIGHT_LONG * (1.0 - confidence);
-		
-		// Calculate weighted average solve time
-		double weightedSolveTime = (shortLWMA * shortWeight + 
-								   mediumLWMA * mediumWeight + 
-								   longLWMA * longWeight) / 
-								   (shortWeight + mediumWeight + longWeight);
-		
-		// Calculate current average difficulty
-		uint32_t effectiveWindow = std::min(static_cast<uint32_t>(timestamps.size() - 1), MEDIUM_WINDOW);
-		uint64_t avgDifficulty = (cumulativeDifficulties[effectiveWindow] - cumulativeDifficulties[0]) / effectiveWindow;
-		
-		// Calculate new difficulty
-		double difficultyRatio = static_cast<double>(T) / weightedSolveTime;
-		
-		// Apply adaptive bounds based on confidence
-		double adjustmentRange = CryptoNote::parameters::DMWDA_ADJUSTMENT_RANGE;
-		double minAdjustment = CryptoNote::parameters::DMWDA_MIN_ADJUSTMENT + (adjustmentRange * (1.0 - confidence)); // Config min to min+range
-		double maxAdjustment = CryptoNote::parameters::DMWDA_MAX_ADJUSTMENT - (2.0 * (1.0 - confidence));  // Config max-2.0 to max
-		
-		difficultyRatio = std::max(minAdjustment, std::min(maxAdjustment, difficultyRatio));
-		
-		uint64_t newDifficulty = static_cast<uint64_t>(avgDifficulty * difficultyRatio);
-		
-		// Apply smoothing to prevent oscillations
-		if (timestamps.size() > 1 && difficulties.size() > 0) {
-			uint64_t prevDifficulty = difficulties.back();
-			double alpha = CryptoNote::parameters::DMWDA_SMOOTHING_FACTOR; // Smoothing factor
-			newDifficulty = static_cast<uint64_t>(alpha * newDifficulty + (1.0 - alpha) * prevDifficulty);
-		}
-		
-		// Minimum difficulty protection
-		return std::max(static_cast<uint64_t>(10000), newDifficulty);
-	}
-
 
 	bool Currency::checkProofOfWorkV1(Crypto::cn_context& context, const Block& block, difficulty_type currentDiffic,
 		Crypto::Hash& proofOfWork) const {
@@ -1411,6 +1276,33 @@ namespace CryptoNote
     depositMinTerm(parameters::DEPOSIT_MIN_TERM);
     depositMaxTerm(parameters::DEPOSIT_MAX_TERM);
 
+    // Burn deposit configuration
+    burnDepositMinAmount(parameters::BURN_DEPOSIT_MIN_AMOUNT);
+    burnDepositStandardAmount(parameters::BURN_DEPOSIT_STANDARD_AMOUNT);
+    burnDeposit8000Amount(parameters::BURN_DEPOSIT_8000_AMOUNT);
+    depositTermForever(parameters::DEPOSIT_TERM_FOREVER);
+
+    // HEAT conversion rate (0.8 XFG = 8M HEAT)
+    heatConversionRate(10000000);
+
+    // Dynamic money supply initialization
+    baseMoneySupply(parameters::MONEY_SUPPLY);
+    totalBurnedXfg(0);
+    totalRebornXfg(0);
+    totalSupply(parameters::MONEY_SUPPLY);
+    circulatingSupply(parameters::MONEY_SUPPLY);
+    blockRewardSupply(parameters::MONEY_SUPPLY);
+
+    // Fuego network ID - using hash of the full network ID for uint64_t compatibility
+    fuegoNetworkIdString("93385046440755750514194170694064996624");
+    // Calculate hash of the full network ID for uint64_t storage
+    std::string networkIdStr = "93385046440755750514194170694064996624";
+    Crypto::Hash networkIdHash;
+    keccak(reinterpret_cast<const uint8_t*>(networkIdStr.data()), networkIdStr.size(), networkIdHash.data, sizeof(networkIdHash.data));
+    // Use first 8 bytes of hash as uint64_t
+    uint64_t networkIdUint64 = *reinterpret_cast<uint64_t*>(networkIdHash.data);
+    fuegoNetworkId(networkIdUint64);
+
     maxBlockSizeInitial(parameters::MAX_BLOCK_SIZE_INITIAL);
     maxBlockSizeGrowthSpeedNumerator(parameters::MAX_BLOCK_SIZE_GROWTH_SPEED_NUMERATOR);
     maxBlockSizeGrowthSpeedDenominator(parameters::MAX_BLOCK_SIZE_GROWTH_SPEED_DENOMINATOR);
@@ -1431,6 +1323,7 @@ namespace CryptoNote
     upgradeHeightV7(parameters::UPGRADE_HEIGHT_V7);
     upgradeHeightV8(parameters::UPGRADE_HEIGHT_V8);
     upgradeHeightV9(parameters::UPGRADE_HEIGHT_V9);
+    upgradeHeightV10(parameters::UPGRADE_HEIGHT_V10);
 
     upgradeVotingThreshold(parameters::UPGRADE_VOTING_THRESHOLD);
     upgradeVotingWindow(parameters::UPGRADE_VOTING_WINDOW);
@@ -1522,6 +1415,172 @@ namespace CryptoNote
 
 		m_currency.m_upgradeWindow = static_cast<uint32_t>(val);
 		return *this;
+	}
+
+	/* ---------------------------------------------------------------------------------------------------- */
+	/* Burn Deposit and Dynamic Money Supply Methods */
+	/* ---------------------------------------------------------------------------------------------------- */
+
+	bool Currency::isValidBurnDepositAmount(uint64_t amount) const {
+		// Valid burn amounts: 0.8 XFG (8,000,000) or 8000 XFG (80,000,000,000)
+		return (amount == m_burnDepositMinAmount || 
+				amount == m_burnDepositStandardAmount || 
+				amount == m_burnDeposit8000Amount);
+	}
+
+	bool Currency::isValidBurnDepositTerm(uint32_t term) const {
+		// Valid burn terms: DEPOSIT_TERM_FOREVER (4294967295)
+		return (term == m_depositTermForever);
+	}
+
+	bool Currency::isBurnDeposit(uint32_t term) const {
+		// Check if this is a burn deposit (FOREVER term)
+		return isValidBurnDepositTerm(term);
+	}
+
+	uint64_t Currency::convertXfgToHeat(uint64_t xfgAmount) const {
+		// Convert XFG to HEAT: 0.8 XFG = 8M HEAT
+		// Formula: (xfgAmount * 10000000) / 800000000
+		return (xfgAmount * 10000000) / 800000000;
+	}
+
+	uint64_t Currency::convertHeatToXfg(uint64_t heatAmount) const {
+		// Convert HEAT to XFG: 8M HEAT = 0.8 XFG
+		// Formula: (heatAmount * 800000000) / 10000000
+		return (heatAmount * 800000000) / 10000000;
+	}
+
+	uint64_t Currency::getTotalSupply() const {
+		// Total supply = Base money supply - Burned XFG
+		return m_baseMoneySupply - m_totalBurnedXfg;
+	}
+
+	uint64_t Currency::getCirculatingSupply() const {
+		// Circulating supply = Total supply - Locked deposits (excluding burn deposits)
+		// Note: Locked deposits calculation is handled separately in DepositIndex
+		return getTotalSupply();
+	}
+
+	uint64_t Currency::getBlockRewardSupply() const {
+		// Block reward supply = Base money supply (includes all reborn amounts)
+		// This allows burned XFG to be redistributed through mining rewards
+		return m_baseMoneySupply;
+	}
+
+	void Currency::addBurnedXfg(uint64_t amount) {
+		if (amount == 0) return;
+		
+		m_totalBurnedXfg += amount;
+		addRebornXfg(amount); // Automatically add as reborn XFG
+		
+		// Increase base money supply by the burned amount
+		m_baseMoneySupply += amount;
+		
+		// Recalculate supplies
+		m_totalSupply = getTotalSupply();
+		m_circulatingSupply = getCirculatingSupply();
+		m_blockRewardSupply = getBlockRewardSupply();
+		
+		// Set money supply for block rewards to base money supply (includes reborn amounts)
+		// This allows burned XFG to be redistributed through mining rewards
+		m_moneySupply = m_blockRewardSupply;
+	}
+
+	void Currency::addRebornXfg(uint64_t amount) {
+		if (amount == 0) return;
+		
+		m_totalRebornXfg += amount;
+		
+		// Recalculate supplies
+		m_totalSupply = getTotalSupply();
+		m_circulatingSupply = getCirculatingSupply();
+		m_blockRewardSupply = getBlockRewardSupply();
+		
+		// Set money supply for block rewards to base money supply (includes reborn amounts)
+		// This allows burned XFG to be redistributed through mining rewards
+		m_moneySupply = m_blockRewardSupply;
+	}
+
+	double Currency::getBurnPercentage() const {
+		if (m_baseMoneySupply == 0) return 0.0;
+		return (static_cast<double>(m_totalBurnedXfg) / static_cast<double>(m_baseMoneySupply)) * 100.0;
+	}
+
+	double Currency::getRebornPercentage() const {
+		if (m_baseMoneySupply == 0) return 0.0;
+		return (static_cast<double>(m_totalRebornXfg) / static_cast<double>(m_baseMoneySupply)) * 100.0;
+	}
+
+	double Currency::getSupplyIncreasePercentage() const {
+		if (m_baseMoneySupply == 0) return 0.0;
+		uint64_t totalSupply = getTotalSupply();
+		return (static_cast<double>(totalSupply - m_baseMoneySupply) / static_cast<double>(m_baseMoneySupply)) * 100.0;
+	}
+
+	bool Currency::validateNetworkId(uint64_t networkId) const {
+		// Validate against hashed Fuego network ID
+		return (networkId == m_fuegoNetworkId);
+	}
+
+	bool Currency::validateNetworkIdString(const std::string& networkId) const {
+		// Validate against full Fuego network ID string
+		return (networkId == m_fuegoNetworkIdString);
+	}
+
+	Crypto::Hash Currency::calculateBurnNullifier(const Crypto::SecretKey& secret) const {
+		// Calculate nullifier using Keccak256: hash(secret + "nullifier")
+		std::vector<uint8_t> data;
+		data.insert(data.end(), secret.data, secret.data + sizeof(secret.data));
+		data.insert(data.end(), (uint8_t*)"nullifier", (uint8_t*)"nullifier" + 9);
+		
+		Crypto::Hash nullifier;
+		keccak(data.data(), data.size(), nullifier.data, sizeof(nullifier.data));
+		return nullifier;
+	}
+
+	Crypto::Hash Currency::calculateBurnCommitment(const Crypto::SecretKey& secret, uint64_t amount) const {
+		// Calculate commitment using Keccak256: hash(secret + "commitment")
+		std::vector<uint8_t> data;
+		data.insert(data.end(), secret.data, secret.data + sizeof(secret.data));
+		data.insert(data.end(), (uint8_t*)"commitment", (uint8_t*)"commitment" + 10);
+		
+		Crypto::Hash commitment;
+		keccak(data.data(), data.size(), commitment.data, sizeof(commitment.data));
+		return commitment;
+	}
+
+	Crypto::Hash Currency::calculateBurnRecipientHash(const std::string& recipientAddress) const {
+		// Calculate recipient hash using Keccak256
+		Crypto::Hash recipientHash;
+		keccak(reinterpret_cast<const uint8_t*>(recipientAddress.data()), recipientAddress.size(), recipientHash.data, sizeof(recipientHash.data));
+		return recipientHash;
+	}
+
+	bool Currency::validateBurnProofData(const std::string& secret, uint64_t amount, const std::string& commitment, const std::string& nullifier) const {
+		// Validate secret format (hex encoded)
+		if (secret.empty() || secret.length() != 64) {
+			return false;
+		}
+		
+		// Validate amount
+		if (!isValidBurnDepositAmount(amount)) {
+			return false;
+		}
+		
+		// Validate commitment and nullifier format (hex encoded)
+		if (commitment.empty() || commitment.length() != 64) {
+			return false;
+		}
+		
+		if (nullifier.empty() || nullifier.length() != 64) {
+			return false;
+		}
+		
+		// TODO: Add more comprehensive validation logic here
+		// This could include verifying the cryptographic relationships
+		// between secret, commitment, and nullifier
+		
+		return true;
 	}
 
 } // namespace CryptoNote

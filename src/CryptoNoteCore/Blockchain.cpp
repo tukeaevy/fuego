@@ -200,28 +200,30 @@ public:
     s(m_bs.m_blockIndex, "block_index");
 
       logger(INFO) << operation << "transaction map";
-      if (s.type() == ISerializer::INPUT)
-      {
-        phmap::BinaryInputArchive ar_in(appendPath(m_bs.m_config_folder, "transactionsmap.dat").c_str());
-        m_bs.m_transactionMap.load(ar_in);
-      }
-      else
-      {
-        phmap::BinaryOutputArchive ar_out(appendPath(m_bs.m_config_folder, "transactionsmap.dat").c_str());
-        m_bs.m_transactionMap.dump(ar_out);
-      }
+      // Temporarily disabled phmap serialization - using std::unordered_map
+      // if (s.type() == ISerializer::INPUT)
+      // {
+      //   phmap::BinaryInputArchive ar_in(appendPath(m_bs.m_config_folder, "transactionsmap.dat").c_str());
+      //   m_bs.m_transactionMap.load(ar_in);
+      // }
+      // else
+      // {
+      //   phmap::BinaryOutputArchive ar_out(appendPath(m_bs.m_config_folder, "transactionsmap.dat").c_str());
+      //   m_bs.m_transactionMap.dump(ar_out);
+      // }
 
       logger(INFO) << operation << "spent keys";
-      if (s.type() == ISerializer::INPUT)
-      {
-        phmap::BinaryInputArchive ar_in(appendPath(m_bs.m_config_folder, "spentkeys.dat").c_str());
-        m_bs.m_spent_keys.load(ar_in);
-      }
-      else
-      {
-        phmap::BinaryOutputArchive ar_out(appendPath(m_bs.m_config_folder, "spentkeys.dat").c_str());
-        m_bs.m_spent_keys.dump(ar_out);
-      }
+      // Temporarily disabled phmap serialization - using std::unordered_map
+      // if (s.type() == ISerializer::INPUT)
+      // {
+      //   phmap::BinaryInputArchive ar_in(appendPath(m_bs.m_config_folder, "spentkeys.dat").c_str());
+      //   m_bs.m_spent_keys.load(ar_in);
+      // }
+      // else
+      // {
+      //   phmap::BinaryOutputArchive ar_out(appendPath(m_bs.m_config_folder, "spentkeys.dat").c_str());
+      //   m_bs.m_spent_keys.dump(ar_out);
+      // }
 
       logger(INFO) << operation << "outputs";
       s(m_bs.m_outputs, "outputs");
@@ -2705,6 +2707,7 @@ bool Blockchain::validateInput(const MultisignatureInput& input, const Crypto::H
   m_blockIndex.pop();
 
   assert(m_blockIndex.size() == m_blocks.size());
+  return true;
 }
 
 bool Blockchain::checkUpgradeHeight(const UpgradeDetector& upgradeDetector) {

@@ -70,39 +70,24 @@ namespace CryptoNote
 		const size_t   DIFFICULTY_WINDOW_V3                          = 60;  // blocks  Zawy-LWMA1
 		const size_t   DIFFICULTY_WINDOW_V4                          = 45;  // blocks  Zawy-LWMA1 Fuego (~180 block per day)
 
-		// DMWDA (Dynamic Multi-Window Difficulty Algorithm) parameters
-		const uint32_t DMWDA_SHORT_WINDOW                            = 15;   // Rapid response window
-		const uint32_t DMWDA_MEDIUM_WINDOW                           = 45;   // Stability window  
-		const uint32_t DMWDA_LONG_WINDOW                             = 120;  // Trend analysis window
-		const uint32_t DMWDA_EMERGENCY_WINDOW                        = 5;    // Emergency response window
-		const double   DMWDA_MIN_ADJUSTMENT                          = 0.5;  // Minimum difficulty adjustment (50%)
-		const double   DMWDA_MAX_ADJUSTMENT                          = 4.0;  // Maximum difficulty adjustment (400%)
-		const double   DMWDA_EMERGENCY_THRESHOLD                     = 0.1;  // Emergency threshold (10%)
-		const double   DMWDA_SMOOTHING_FACTOR                        = 0.3;  // Smoothing factor for oscillations prevention
-		const double   DMWDA_CONFIDENCE_MIN                          = 0.1;  // Minimum confidence score
-		const double   DMWDA_CONFIDENCE_MAX                          = 1.0;  // Maximum confidence score
-		const double   DMWDA_ADJUSTMENT_RANGE                        = 0.3;  // Adjustment range for confidence-based bounds
-		const double   DMWDA_WEIGHT_SHORT                            = 0.4;  // Weight for short window
-		const double   DMWDA_WEIGHT_MEDIUM                           = 0.4;  // Weight for medium window
-		const double   DMWDA_WEIGHT_LONG                             = 0.2;  // Weight for long window
-		const double   DMWDA_HASH_RATE_CHANGE_THRESHOLD              = 10.0; // Hash rate change threshold for anomaly detection
-		const double   DMWDA_DEFAULT_CONFIDENCE                      = 0.5;  // Default confidence score
-		const uint32_t DMWDA_RECENT_WINDOW_SIZE                      = 5;    // Recent window size for anomaly detection
-		const uint32_t DMWDA_HISTORICAL_WINDOW_SIZE                  = 20;   // Historical window size for anomaly detection
-		const uint32_t DMWDA_BLOCK_STEALING_CHECK_BLOCKS             = 5;    // Number of blocks to check for stealing attempts
-		const uint32_t DMWDA_BLOCK_STEALING_THRESHOLD                = 2;    // Threshold for fast blocks to trigger stealing detection
-		const double   DMWDA_BLOCK_STEALING_TIME_THRESHOLD           = 0.05; // 5% of target time threshold for fast blocks
-
-		const uint64_t MIN_TX_MIXIN_SIZE                             = 2;
+		const uint64_t MIN_TX_MIXIN_SIZE                             = 2;                   
 		const uint64_t MIN_TX_MIXIN_SIZE_V10                         = 8;  // Enhanced privacy starting from BlockMajorVersion 10
 		const uint64_t MAX_TX_MIXIN_SIZE                             = 18;
 		static_assert(2 * DIFFICULTY_CUT <= DIFFICULTY_WINDOW - 2, "Bad DIFFICULTY_WINDOW or DIFFICULTY_CUT");
 
-		const uint64_t DEPOSIT_MIN_AMOUNT = 800 * COIN;
+		const uint64_t DEPOSIT_MIN_AMOUNT = 800 * COIN;    // 800 XFG (8,000,000,000 atomic units)
+		const uint64_t BURN_DEPOSIT_MIN_AMOUNT = 8000000;  // 0.8 XFG (8,000,000 atomic units)
+		const uint64_t BURN_DEPOSIT_STANDARD_AMOUNT = 8000000;  // Standard burn: 0.8 XFG (8,000,000 atomic units)
+		const uint64_t BURN_DEPOSIT_8000_AMOUNT = 8000 * COIN;  // 8000 XFG (80,000,000,000 atomic units)
 		const uint32_t DEPOSIT_MIN_TERM_v1 = 5480;  //blocks
                 const uint32_t DEPOSIT_MAX_TERM_v1 = 5480; 
                 const uint32_t DEPOSIT_MIN_TERM = 16440;  //blocks		 /* one month=5480 ( 3 months (16440) for release ) OverviewFrame::depositParamsChanged */
                 const uint32_t DEPOSIT_MAX_TERM = 16440;  		 /* 3 month standard */
+                const uint32_t DEPOSIT_TERM_FOREVER = ((uint32_t)(-1));  // Forever term for burn transactions
+                
+                // User-friendly deposit term constants
+                const uint32_t DEPOSIT_TERM_YIELD = DEPOSIT_MIN_TERM;     // 16440 blocks (3 months) for yield deposits
+                const uint32_t DEPOSIT_TERM_BURN = DEPOSIT_TERM_FOREVER;  // 4294967295 for burn deposits
 
 		static_assert(DEPOSIT_MIN_TERM > 0, "Bad DEPOSIT_MIN_TERM");
 		static_assert(DEPOSIT_MIN_TERM <= DEPOSIT_MAX_TERM, "Bad DEPOSIT_MAX_TERM");
@@ -140,6 +125,7 @@ namespace CryptoNote
                 const uint32_t UPGRADE_HEIGHT_V7                             = 657000; //Apotheosis  Fango
 		const uint32_t UPGRADE_HEIGHT_V8                             = 800000; //Dragonborne (emission|deposits)
                 const uint32_t UPGRADE_HEIGHT_V9                             = 826420; //Godflame  (emission|UPX2|Fuego)
+                const uint32_t UPGRADE_HEIGHT_V10                            = 969696; //Enhanced Privacy (ring size 8)
 		const unsigned UPGRADE_VOTING_THRESHOLD = 90; // percent
 		const size_t UPGRADE_VOTING_WINDOW = EXPECTED_NUMBER_OF_BLOCKS_PER_DAY;
 		const size_t UPGRADE_WINDOW = EXPECTED_NUMBER_OF_BLOCKS_PER_DAY;
@@ -170,12 +156,8 @@ namespace CryptoNote
 	const uint8_t  BLOCK_MAJOR_VERSION_6                         =  6;
 	const uint8_t  BLOCK_MAJOR_VERSION_7                         =  7;
 	const uint8_t  BLOCK_MAJOR_VERSION_8                         =  8; 
-	const uint8_t  BLOCK_MAJOR_VERSION_9                         =  9;
-	const uint8_t  BLOCK_MAJOR_VERSION_10                        = 10;
-	const uint8_t  BLOCK_MAJOR_VERSION_11                        = 11;
-	const uint8_t  BLOCK_MAJOR_VERSION_12                        = 12;
-	const uint8_t  BLOCK_MAJOR_VERSION_13                        = 13;
-	const uint8_t  BLOCK_MAJOR_VERSION_14                        = 14;
+		const uint8_t  BLOCK_MAJOR_VERSION_9                         =  9;
+		const uint8_t  BLOCK_MAJOR_VERSION_10                        = 10;
 	const uint8_t  BLOCK_MINOR_VERSION_0 			     =  0;
 	const uint8_t  BLOCK_MINOR_VERSION_1 			     =  1;
 

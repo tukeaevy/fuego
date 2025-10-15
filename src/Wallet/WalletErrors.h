@@ -65,8 +65,7 @@ enum WalletErrorCodes {
   DEPOSIT_WRONG_TERM,
   DESTINATION_ADDRESS_REQUIRED,
   DESTINATION_ADDRESS_NOT_FOUND,
-  DAEMON_NOT_SYNCED,
-  INSUFFICIENT_OUTPUTS_FOR_RING_SIZE
+  DAEMON_NOT_SYNCED
 };
 
 // custom category:
@@ -124,7 +123,6 @@ public:
     case DEPOSIT_LOCKED:           return "Deposit is locked";
     case DEPOSIT_WRONG_TERM:       return "Incorrect term";
     case DAEMON_NOT_SYNCED:        return "Daemon is not synchronized";
-    case INSUFFICIENT_OUTPUTS_FOR_RING_SIZE: return "Insufficient outputs for transaction amount. Please run wallet optimizer to consolidate outputs.";
         default:
       return "Unknown error";
     }
