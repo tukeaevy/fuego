@@ -1,9 +1,10 @@
 // ARM64-optimized crypto operations for Fuego
 // Copyright (c) 2024 Fuego Developers
 
-#include "arm64_optimizations.h"
-#include "crypto.h"
+#include <stdint.h>
+#include <stddef.h>
 #include <string.h>
+#include "arm64_optimizations.h"
 
 // Only compile ARM64-specific code when building for ARM64
 #if defined(__aarch64__) && defined(__ARM_NEON)

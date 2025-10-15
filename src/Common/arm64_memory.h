@@ -182,6 +182,10 @@ static inline void arm64_cache_flush(void* addr, size_t size) {
 // Non-ARM64 builds: provide fallback implementations
 // This ensures the header can be safely included on all platforms
 
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+
 // Fallback implementations for non-ARM64 platforms
 #define ARM64_CACHE_LINE_SIZE 64
 

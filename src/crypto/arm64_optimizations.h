@@ -130,6 +130,10 @@ static inline uint32_t arm64_crc32_u32(uint32_t crc, uint32_t data) {
 // Non-ARM64 builds: provide empty stubs or fallback to standard implementations
 // This ensures the header can be safely included on all platforms
 
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+
 // Empty stubs for non-ARM64 platforms
 #define ARM64_PREFETCH_READ(addr) ((void)0)
 #define ARM64_PREFETCH_WRITE(addr) ((void)0)

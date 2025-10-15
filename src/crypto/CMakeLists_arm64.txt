@@ -3,7 +3,7 @@
 
 if(ARM64_OPTIMIZATIONS)
     # Add ARM64-specific crypto source files
-    list(APPEND Crypto arm64_crypto.c)
+    list(APPEND Crypto arm64_crypto.cpp)
     
     # Add ARM64-specific include directories
     include_directories(${CMAKE_CURRENT_SOURCE_DIR})
