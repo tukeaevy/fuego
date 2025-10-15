@@ -50,10 +50,13 @@ if(ARM7) # ARMv7 Pi 3/4 32Bit
 elseif(ARM8) # ARMv8 Pi 3/4 64Bit
   if(APPLE_SILICON)
     # Apple Silicon M1/M2/M3 specific optimizations
-    CHECK_CXX_ACCEPTS_FLAG("-march=armv8.5-a+fp16+rcpc+dotprod+crypto" TRY_ARCH_APPLE)
+    CHECK_CXX_ACCEPTS_FLAG("-march=armv8.5-a+fp16+rcpc+dotprod+crypto+bf16" TRY_ARCH_APPLE)
     if(TRY_ARCH_APPLE)
-      message(STATUS "Setting -march=armv8.5-a+fp16+rcpc+dotprod+crypto for Apple Silicon")
-      set(ARCH_FLAG "-march=armv8.5-a+fp16+rcpc+dotprod+crypto")
+      message(STATUS "Setting -march=armv8.5-a+fp16+rcpc+dotprod+crypto+bf16 for Apple Silicon")
+      set(ARCH_FLAG "-march=armv8.5-a+fp16+rcpc+dotprod+crypto+bf16")
+      # Add Apple Silicon specific optimizations
+      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAPPLE_SILICON_OPTIMIZATIONS")
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DAPPLE_SILICON_OPTIMIZATIONS")
     else()
       CHECK_CXX_ACCEPTS_FLAG("-march=armv8-a+fp+simd+crypto" TRY_ARCH_APPLE_FALLBACK)
       if(TRY_ARCH_APPLE_FALLBACK)
