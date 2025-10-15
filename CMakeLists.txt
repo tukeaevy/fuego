@@ -150,6 +150,9 @@ if(POLICY CMP0167)
   cmake_policy(SET CMP0167 OLD)
 endif()
 
+# Explicitly disable BoostConfig.cmake to force use of FindBoost.cmake
+set(Boost_NO_BOOST_CMAKE ON)
+
 #set(Boost_DEBUG on)
 find_package(Boost 1.55 REQUIRED COMPONENTS system filesystem thread date_time chrono regex serialization program_options)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
