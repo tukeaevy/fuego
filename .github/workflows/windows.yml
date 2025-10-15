@@ -9,8 +9,6 @@ jobs:
   build-windows:
     name: Windows
     runs-on: windows-2022
-    env:
-      BOOST_ROOT: C:\thirdparties\boost-1.83.0
     steps:
       - uses: actions/checkout@v4
         with:
@@ -19,12 +17,26 @@ jobs:
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.3
         
-      - name: Download and Install Boost 1.83
+      - name: Install Boost using vcpkg
         run: |
-          $Url = "https://github.com/boostorg/boost/releases/download/boost-1.83.0/boost_1_83_0-msvc-14.2-64.exe"
-          $OutputPath = "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\boost-installer.exe"
-          curl -L $Url -o $OutputPath
-          Start-Process -Wait -FilePath $OutputPath "/SILENT","/SP-","/SUPPRESSMSGBOXES","/DIR=C:\\thirdparties\\boost-1.83.0"
+          # Install vcpkg
+          git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
+          cd C:\vcpkg
+          .\bootstrap-vcpkg.bat
+          
+          # Install Boost libraries
+          .\vcpkg install boost-system:x64-windows
+          .\vcpkg install boost-filesystem:x64-windows
+          .\vcpkg install boost-thread:x64-windows
+          .\vcpkg install boost-date-time:x64-windows
+          .\vcpkg install boost-chrono:x64-windows
+          .\vcpkg install boost-regex:x64-windows
+          .\vcpkg install boost-serialization:x64-windows
+          .\vcpkg install boost-program-options:x64-windows
+          
+          # Set environment variables
+          echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
+          echo "CMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake" >> $env:GITHUB_ENV
 
       - name: Build
         shell: powershell
@@ -36,7 +48,7 @@ jobs:
           $release_name = "fuego-cli-win64-v$xfg_ver"
           mkdir "$build_folder" -Force
           cd "$build_folder"
-          cmake -G "Visual Studio 17 2022" -A x64 -DBOOST_ROOT="$env:BOOST_ROOT" -DBOOST_INCLUDE_DIRS="$env:BOOST_ROOT/include" ..
+          cmake -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE="$env:CMAKE_TOOLCHAIN_FILE" ..
           if ($LASTEXITCODE -ne 0) { throw "CMake configuration failed" }
           msbuild fuegoX.sln /p:Configuration=Release /m /v:minimal
           if ($LASTEXITCODE -ne 0) { throw "Build failed" }
