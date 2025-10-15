@@ -4,6 +4,7 @@
 #ifndef ARM64_MEMORY_H
 #define ARM64_MEMORY_H
 
+// Only include ARM64 optimizations when building for ARM64
 #if defined(__aarch64__)
 
 #include <stdint.h>
@@ -175,6 +176,54 @@ static inline void arm64_cache_flush(void* addr, size_t size) {
     for (char* p = start; p <= end; p += ARM64_CACHE_LINE_SIZE) {
         __asm__ __volatile__("dc cvac, %0" : : "r"(p) : "memory");
     }
+}
+
+#else
+// Non-ARM64 builds: provide fallback implementations
+// This ensures the header can be safely included on all platforms
+
+// Fallback implementations for non-ARM64 platforms
+#define ARM64_CACHE_LINE_SIZE 64
+
+static inline void arm64_prefetch_read(const void* addr) {
+    __builtin_prefetch(addr, 0, 3);
+}
+
+static inline void arm64_prefetch_write(const void* addr) {
+    __builtin_prefetch(addr, 1, 3);
+}
+
+static inline void arm64_memcpy_optimized(void* dest, const void* src, size_t n) {
+    memcpy(dest, src, n);
+}
+
+static inline void arm64_memset_optimized(void* ptr, int value, size_t num) {
+    memset(ptr, value, num);
+}
+
+static inline void arm64_memory_barrier() {
+    __asm__ __volatile__("" ::: "memory");
+}
+
+static inline void arm64_read_barrier() {
+    __asm__ __volatile__("" ::: "memory");
+}
+
+static inline void arm64_write_barrier() {
+    __asm__ __volatile__("" ::: "memory");
+}
+
+static inline int arm64_memcmp_optimized(const void* s1, const void* s2, size_t n) {
+    return memcmp(s1, s2, n);
+}
+
+#define ARM64_LIKELY(x) (x)
+#define ARM64_UNLIKELY(x) (x)
+
+static inline void arm64_cache_flush(void* addr, size_t size) {
+    // No-op for non-ARM64 platforms
+    (void)addr;
+    (void)size;
 }
 
 #endif // __aarch64__

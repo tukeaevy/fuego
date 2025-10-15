@@ -1,0 +1,12 @@
+# ARM64-specific source files for crypto module
+# This file is conditionally included only when building for ARM64
+
+if(ARM64_OPTIMIZATIONS)
+    # Add ARM64-specific crypto source files
+    list(APPEND Crypto arm64_crypto.c)
+    
+    # Add ARM64-specific include directories
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+    
+    message(STATUS "Including ARM64 crypto optimizations")
+endif()
