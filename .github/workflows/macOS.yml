@@ -47,7 +47,12 @@ jobs:
                   -DCMAKE_SYSTEM_PROCESSOR=arm64 \
                   -DARCH=arm64 \
                   -DCMAKE_PREFIX_PATH="/opt/homebrew" \
+                  -DBOOST_ROOT="/opt/homebrew" \
+                  -DBoost_INCLUDE_DIR="/opt/homebrew/include" \
+                  -DBoost_LIBRARY_DIR="/opt/homebrew/lib" \
                   -DBoost_NO_BOOST_CMAKE=ON \
+                  -DBoost_USE_STATIC_LIBS=OFF \
+                  -DBoost_USE_MULTITHREADED=ON \
                   ..
           else
             # Intel x86_64 configuration
@@ -57,7 +62,12 @@ jobs:
                   -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
                   -DARCH=x86_64 \
                   -DCMAKE_PREFIX_PATH="/opt/homebrew" \
+                  -DBOOST_ROOT="/opt/homebrew" \
+                  -DBoost_INCLUDE_DIR="/opt/homebrew/include" \
+                  -DBoost_LIBRARY_DIR="/opt/homebrew/lib" \
                   -DBoost_NO_BOOST_CMAKE=ON \
+                  -DBoost_USE_STATIC_LIBS=OFF \
+                  -DBoost_USE_MULTITHREADED=ON \
                   ..
           fi
           
