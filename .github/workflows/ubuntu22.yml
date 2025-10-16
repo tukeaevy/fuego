@@ -5,6 +5,7 @@ on:
     tags:
       - "*"
 
+
 jobs:
   build-ubuntu22:
     name: Ubuntu 22.04
