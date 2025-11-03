@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2022 Fuego Developers
+// Copyright (c) 2017-2025 Fuego Developers
 // Copyright (c) 2018-2019 Conceal Network & Conceal Devs
 // Copyright (c) 2016-2019 The Karbowanec developers
 // Copyright (c) 2012-2018 The CryptoNote developers
@@ -83,19 +83,17 @@ public:
   }
   uint64_t moneySupply() const { return m_moneySupply; }
   size_t cryptonoteCoinVersion() const { return m_cryptonoteCoinVersion; }
-
+  
   size_t rewardBlocksWindow() const { return m_rewardBlocksWindow; }
-
-
   size_t blockGrantedFullRewardZone() const { return m_blockGrantedFullRewardZone; }
   size_t blockGrantedFullRewardZoneByBlockVersion(uint8_t blockMajorVersion) const;
   size_t minerTxBlobReservedSize() const { return m_minerTxBlobReservedSize; }
   size_t minMixin() const { return m_minMixin; }
   size_t minMixin(uint8_t blockMajorVersion) const {
     if (blockMajorVersion >= BLOCK_MAJOR_VERSION_10) {
-      return parameters::MIN_TX_MIXIN_SIZE_V10; // Enhanced privacy: ring size 8
+      return parameters::MIN_TX_MIXIN_SIZE_V10; // Defualt privacy: mixin 8 
     }
-    return m_minMixin; // Default: ring size 2
+    return m_minMixin; // legacy default: mixin 3
   }
   
   // Dynamic ring size calculation based on available outputs
@@ -223,13 +221,12 @@ public:
 
   bool getBlockReward(uint8_t blockMajorVersion, size_t medianSize, size_t currentBlockSize, uint64_t alreadyGeneratedCoins, uint64_t fee, uint32_t height,
                         uint64_t &reward, int64_t &emissionChange) const;
-    uint64_t calculateInterest(uint64_t amount, uint32_t term, uint32_t height) const;
-    uint64_t calculateTotalTransactionInterest(const Transaction &tx, uint32_t height) const;
+
     uint64_t getTransactionInputAmount(const TransactionInput &in, uint32_t height) const;
     uint64_t getTransactionAllInputsAmount(const Transaction &tx, uint32_t height) const;
     bool getTransactionFee(const Transaction &tx, uint64_t &fee, uint32_t height) const;
     uint64_t getTransactionFee(const Transaction &tx, uint32_t height) const;
-  size_t maxBlockCumulativeSize(uint64_t height) const;
+    size_t maxBlockCumulativeSize(uint64_t height) const;
 
   bool constructMinerTx(uint8_t blockMajorVersion, uint32_t height, size_t medianSize, uint64_t alreadyGeneratedCoins, size_t currentBlockSize,
                           uint64_t fee, const AccountPublicAddress &minerAddress, Transaction &tx,
@@ -240,6 +237,38 @@ public:
   bool isFusionTransaction(const std::vector<uint64_t> &inputsAmounts, const std::vector<uint64_t> &outputsAmounts, size_t size) const;
   bool isAmountApplicableInFusionTransactionInput(uint64_t amount, uint64_t threshold, uint32_t height) const;
   bool isAmountApplicableInFusionTransactionInput(uint64_t amount, uint64_t threshold, uint8_t &amountPowerOfTen, uint32_t height) const;
+
+  // Burn deposit validation methods
+  bool isValidBurnDepositAmount(uint64_t amount) const;
+  bool isValidBurnDepositTerm(uint32_t term) const;
+  bool isBurnDeposit(uint32_t term) const;
+  uint64_t getBurnDepositMinAmount() const { return m_burnDepositMinAmount; }
+  uint64_t getBurnDepositStandardAmount() const { return m_burnDepositStandardAmount; }
+  uint64_t getBurnDeposit8000Amount() const { return m_burnDeposit8000Amount; }
+  uint32_t getDepositTermForever() const { return m_depositTermForever; }
+  uint32_t getDepositTermBurn() const { return m_depositTermForever; }  // Alias for compatibility
+
+  // HEAT conversion methods
+  uint64_t convertXfgToHeat(uint64_t xfgAmount) const;
+  uint64_t convertHeatToXfg(uint64_t heatAmount) const;
+  uint64_t getHeatConversionRate() const { return m_heatConversionRate; }
+
+  // Money supply methods
+  uint64_t getEternalFlame() const { return m_ethernalXFG; }
+  void addEternalFlame(uint64_t amount);
+  double getBurnPercentage() const;
+
+  // Network validation
+  uint64_t getFuegoNetworkId() const { return m_fuegoNetworkId; }
+  const std::string& getFuegoNetworkIdString() const { return m_fuegoNetworkIdString; }
+  bool validateNetworkId(uint64_t networkId) const;
+  bool validateNetworkIdString(const std::string& networkId) const;
+
+  // Burn proof data methods
+  Crypto::Hash calculateBurnNullifier(const Crypto::SecretKey& secret) const;
+  Crypto::Hash calculateBurnCommitment(const Crypto::SecretKey& secret, uint64_t amount) const;
+  Crypto::Hash calculateBurnRecipientHash(const std::string& recipientAddress) const;
+  bool validateBurnProofData(const std::string& secret, uint64_t amount, const std::string& commitment, const std::string& nullifier) const;
 
   std::string accountAddressAsString(const AccountBase &account) const;
   std::string accountAddressAsString(const AccountPublicAddress &accountPublicAddress) const;
@@ -290,7 +319,6 @@ private:
   unsigned int m_emissionSpeedFactor_FUEGO;
 
   size_t m_cryptonoteCoinVersion;
-
   size_t m_rewardBlocksWindow;
   size_t m_blockGrantedFullRewardZone;
   size_t m_minerTxBlobReservedSize;
@@ -313,8 +341,21 @@ private:
   uint64_t m_depositMinAmount;
   uint32_t m_depositMinTerm;
   uint32_t m_depositMaxTerm;
-    uint64_t m_depositMinTotalRateFactor;
-    uint64_t m_depositMaxTotalRate;
+
+  // Burn deposit configuration
+  uint64_t m_burnDepositMinAmount;
+  uint64_t m_burnDepositStandardAmount;
+  uint64_t m_burnDeposit8000Amount;
+  uint32_t m_depositTermForever;  
+
+  // HEAT token conversion
+  uint64_t m_heatConversionRate;
+
+  uint64_t m_ethernalXFG;
+
+  // Network validation - using hash of the full network ID
+  uint64_t m_fuegoNetworkId;
+  std::string m_fuegoNetworkIdString;  // Full network ID as string
 
   size_t m_maxBlockSizeInitial;
   uint64_t m_maxBlockSizeGrowthSpeedNumerator;
@@ -336,6 +377,7 @@ private:
   uint32_t m_upgradeHeightV7;
   uint32_t m_upgradeHeightV8;
   uint32_t m_upgradeHeightV9;
+  uint32_t m_upgradeHeightV10;
   unsigned int m_upgradeVotingThreshold;
   uint32_t m_upgradeVotingWindow;
   uint32_t m_upgradeWindow;
@@ -416,16 +458,6 @@ public:
   CurrencyBuilder& maxBlockSizeInitial(size_t val) { m_currency.m_maxBlockSizeInitial = val; return *this; }
   CurrencyBuilder& maxBlockSizeGrowthSpeedNumerator(uint64_t val) { m_currency.m_maxBlockSizeGrowthSpeedNumerator = val; return *this; }
   CurrencyBuilder& maxBlockSizeGrowthSpeedDenominator(uint64_t val) { m_currency.m_maxBlockSizeGrowthSpeedDenominator = val; return *this; }
-    CurrencyBuilder &depositMinTotalRateFactor(uint64_t val)
-    {
-      m_currency.m_depositMinTotalRateFactor = val;
-      return *this;
-    }
-    CurrencyBuilder &depositMaxTotalRate(uint64_t val)
-    {
-      m_currency.m_depositMaxTotalRate = val;
-      return *this;
-    }
 
   CurrencyBuilder& lockedTxAllowedDeltaSeconds(uint64_t val) { m_currency.m_lockedTxAllowedDeltaSeconds = val; return *this; }
   CurrencyBuilder& lockedTxAllowedDeltaSeconds_v2(uint64_t val) { m_currency.m_lockedTxAllowedDeltaSeconds_v2 = val; return *this; }
@@ -434,6 +466,20 @@ public:
   CurrencyBuilder& depositMinAmount(uint64_t val) { m_currency.m_depositMinAmount = val; return *this; }
   CurrencyBuilder& depositMinTerm(uint32_t val)   { m_currency.m_depositMinTerm = val; return *this;  }
   CurrencyBuilder& depositMaxTerm(uint32_t val)   { m_currency.m_depositMaxTerm = val; return *this; }
+
+  // Burn deposit configuration builders
+  CurrencyBuilder& burnDepositMinAmount(uint64_t val) { m_currency.m_burnDepositMinAmount = val; return *this; }
+  CurrencyBuilder& burnDepositStandardAmount(uint64_t val) { m_currency.m_burnDepositStandardAmount = val; return *this; }
+  CurrencyBuilder& burnDeposit8000Amount(uint64_t val) { m_currency.m_burnDeposit8000Amount = val; return *this; }
+  CurrencyBuilder& depositTermForever(uint32_t val) { m_currency.m_depositTermForever = val; return *this; }
+  CurrencyBuilder& ethernalXFG(uint64_t val) { m_currency.m_ethernalXFG = val; return *this; }
+
+  // HEAT conversion builder
+  CurrencyBuilder& heatConversionRate(uint64_t val) { m_currency.m_heatConversionRate = val; return *this; }
+
+  // Network validation builder
+  CurrencyBuilder& fuegoNetworkId(uint64_t val) { m_currency.m_fuegoNetworkId = val; return *this; }
+  CurrencyBuilder& fuegoNetworkIdString(const std::string& val) { m_currency.m_fuegoNetworkIdString = val; return *this; }
 
   CurrencyBuilder& mempoolTxLiveTime(uint64_t val) { m_currency.m_mempoolTxLiveTime = val; return *this; }
   CurrencyBuilder& mempoolTxFromAltBlockLiveTime(uint64_t val) { m_currency.m_mempoolTxFromAltBlockLiveTime = val; return *this; }
@@ -450,6 +496,7 @@ public:
   CurrencyBuilder& upgradeHeightV7(uint64_t val) { m_currency.m_upgradeHeightV7 = static_cast<uint32_t>(val); return *this; }
   CurrencyBuilder& upgradeHeightV8(uint64_t val) { m_currency.m_upgradeHeightV8 = static_cast<uint32_t>(val); return *this; }
   CurrencyBuilder& upgradeHeightV9(uint64_t val) { m_currency.m_upgradeHeightV9 = static_cast<uint32_t>(val); return *this; }
+  CurrencyBuilder& upgradeHeightV10(uint64_t val) { m_currency.m_upgradeHeightV10 = static_cast<uint32_t>(val); return *this; }
 
 
   CurrencyBuilder& upgradeVotingThreshold(unsigned int val);
@@ -461,16 +508,7 @@ public:
   CurrencyBuilder& txPoolFileName(const std::string& val) { m_currency.m_txPoolFileName = val; return *this; }
   CurrencyBuilder& blockchinIndicesFileName(const std::string& val) { m_currency.m_blockchinIndicesFileName = val; return *this; }
   
-  CurrencyBuilder& testnet(bool val) { 
-    m_currency.m_testnet = val; 
-    
-    // Set testnet-specific address prefix when testnet mode is enabled
-    if (val) {
-      publicAddressBase58Prefix(CRYPTONOTE_PUBLIC_ADDRESS_BASE58_PREFIX_TESTNET);
-    }
-    
-    return *this; 
-  }
+  CurrencyBuilder& testnet(bool val) { m_currency.m_testnet = val; return *this; }
 
   private:
     Currency m_currency;
